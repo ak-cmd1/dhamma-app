@@ -6,51 +6,164 @@
 <title>経典</title>
 
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#f4efe4">
+<meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1a17" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="経典">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
 
 <main id="app">
 
-  <!-- 画面1:質問 -->
-  <section id="screen-question" class="screen">
+  <!-- 画面0:始める(唯一のタップ。ここで音の許可を取る) -->
+  <section id="screen-start" class="screen center">
+    <p class="start-date" id="start-date"></p>
+    <h1 class="start-title">経典</h1>
+    <p class="start-lead">目を閉じたまま、坐まで案内します。</p>
+    <div class="actions">
+      <button class="btn-primary" id="start-btn">始める</button>
+    </div>
+
+    <!-- 坐りかけがある日だけ出る -->
+    <button class="link-btn" id="resume-btn" hidden></button>
+
+    <div class="start-links">
+      <!-- 今日の蓋が実感と合わない日は、こちらから選び直せる -->
+      <button class="link-btn" id="choose-btn">今日の気分から選ぶ</button>
+      <button class="link-btn faint" id="settings-btn">設定</button>
+    </div>
+  </section>
+
+  <!-- 画面0c:気分から選ぶ(目を閉じる前の段階なので、ここだけ操作が入る) -->
+  <section id="screen-choose" class="screen" hidden>
     <p class="eyebrow">今日は</p>
     <h1 class="question">どんな気分ですか</h1>
     <div class="choices" id="choices"></div>
+    <button class="link-btn" id="choose-back-btn">戻る</button>
   </section>
 
-  <!-- 画面2:苦→集→滅→道 -->
-  <section id="screen-stage" class="screen" hidden>
-    <div class="progress" id="progress"></div>
-    <div class="stage-card">
-      <p class="stage-title" id="stage-title"></p>
-      <p class="stage-sutra" id="stage-sutra"></p>
-      <p class="stage-text" id="stage-text"></p>
+  <!-- 画面0s:設定 -->
+  <section id="screen-settings" class="screen center" hidden>
+    <p class="method-lead">設定</p>
+
+    <div class="setting-row">
+      <p class="setting-label">坐る長さ</p>
+      <div class="setting-choices" id="duration-choices"></div>
     </div>
+
+    <div class="setting-row">
+      <p class="setting-label">声で案内する</p>
+      <div class="setting-choices" id="voice-choices"></div>
+      <p class="setting-note" id="voice-note"></p>
+    </div>
+
+    <div class="setting-row">
+      <p class="setting-label">声の速さ</p>
+      <div class="setting-choices" id="rate-choices"></div>
+    </div>
+
     <div class="actions">
-      <button class="btn-primary" id="next-btn">次へ</button>
+      <button class="btn-primary" id="settings-done-btn">戻る</button>
     </div>
-    <button class="link-btn" id="restart-from-stage">最初から選び直す</button>
   </section>
 
-  <!-- 画面3:締め -->
-  <section id="screen-closing" class="screen" hidden>
+  <!-- 画面1:三帰依 -->
+  <section id="screen-refuge" class="screen center" hidden>
+    <div class="refuge-list" id="refuge-list"></div>
+  </section>
+
+  <!-- 画面2:呼吸 -->
+  <section id="screen-open" class="screen center" hidden>
+    <div class="breath-stage" id="breath-circle">
+      <div class="breath-glow"></div>
+      <div class="breath-ring ring-3"></div>
+      <div class="breath-ring ring-2"></div>
+      <div class="breath-ring ring-1"></div>
+      <div class="breath-core"></div>
+      <svg class="breath-arc" viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="breath-arc-track" cx="50" cy="50" r="46" />
+        <circle class="breath-arc-line" cx="50" cy="50" r="46" />
+      </svg>
+    </div>
+    <p class="breath-guide" id="breath-guide">吸って</p>
+    <p class="breath-count" id="breath-count"></p>
+  </section>
+
+  <!-- 画面3:身体を整える(経典より先。ここで坐る姿勢になる) -->
+  <section id="screen-posture" class="screen center" hidden>
+    <p class="posture-text" id="posture-text"></p>
+  </section>
+
+  <!-- 画面4:今日の一節(坐った姿勢のまま聴く) -->
+  <section id="screen-passage" class="screen" hidden>
+    <p class="daily-lead">今日の一節</p>
+    <div class="daily-card">
+      <p class="daily-sutra" id="passage-sutra"></p>
+      <div class="daily-text" id="passage-text"></div>
+    </div>
+    <button class="link-btn faint" id="skip-btn" hidden>読まずに坐る</button>
+    <button class="link-btn" id="reread-close" hidden>閉じる</button>
+  </section>
+
+  <!-- 画面5:締め + 今日の坐り方(このあとすぐ鐘) -->
+  <section id="screen-closing" class="screen center" hidden>
     <p class="closing-text" id="closing-text"></p>
-    <div class="actions">
-      <button class="btn-primary" id="restart-btn">もう一度選ぶ</button>
+    <p class="closing-note" id="closing-note"></p>
+    <div class="method-block">
+      <p class="method-lead">今日の坐り方</p>
+      <p class="method-name" id="method-name"></p>
+      <p class="method-short" id="method-short"></p>
+    </div>
+    <div class="closing-links">
+      <button class="link-btn faint" id="walk-btn" hidden>坐らずに歩く(経行)</button>
+      <button class="link-btn faint" id="cannot-sit-btn">今日は坐れない</button>
+    </div>
+  </section>
+
+  <!-- 画面9:坐っている -->
+  <section id="screen-sitting" class="screen center" hidden>
+    <div class="still-circle"></div>
+    <p class="sitting-short" id="sitting-short"></p>
+    <button class="link-btn faint" id="stop-btn">やめる</button>
+  </section>
+
+  <!-- 画面10:坐り終えたあとの問い -->
+  <section id="screen-after" class="screen center" hidden>
+    <p class="after-inquiry" id="after-inquiry"></p>
+    <button class="link-btn" id="sit-again-btn" hidden>まだ残っている ── もう一度坐る</button>
+  </section>
+
+  <!-- 画面11:回向の向き先 -->
+  <section id="screen-aim" class="screen center" hidden>
+    <p class="aim-text" id="aim-text"></p>
+  </section>
+
+  <!-- 画面12:回向 -->
+  <section id="screen-dedication" class="screen center" hidden>
+    <p class="dedication-lead">回向</p>
+    <p class="dedication-text" id="dedication-text"></p>
+    <div class="dedication-pali" id="dedication-pali"></div>
+  </section>
+
+  <!-- 画面13:終わり -->
+  <section id="screen-done" class="screen center" hidden>
+    <p class="done-text">終わりました。</p>
+    <div class="start-links">
+      <button class="link-btn" id="reread-btn">今日の一節をもう一度</button>
+      <button class="link-btn faint" id="done-btn">閉じる</button>
     </div>
   </section>
 
 </main>
 
-<script src="data.js"></script>
-<script src="app.js"></script>
+<script src="data.js?v=31"></script>
+<script src="passages.js?v=31"></script>
+<script src="speech.js?v=31"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>
