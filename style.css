@@ -169,154 +169,66 @@ body {
 /* 中心の円・三重の輪・にじむ光・外周をなぞる弧を、少しずつ時間をずらして動かす。
    ずらすことで、ひとつの円が伸縮するのではなく、波が広がるように見える。
    時間は app.js の OPEN_INHALE_MS / OPEN_EXHALE_MS と合わせる。 */
+/* ---------- 呼吸の花 ----------
+   六つの円を、中心から放射状に固定して置く。
+   息に合わせて動かすのは「花全体」だけで、拡大しながら少しずつ回っていく。
+   円どうしの重なりが濃淡を生むので、開くと花びらのように見える。
+   動きの長さは、吸う・吐くそれぞれに合わせて JS が --breath-dur で渡す。 */
+
 .breath-stage {
   position: relative;
-  width: 240px;
-  height: 240px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 260px;
+  height: 260px;
+  --breath-dur: 4000ms;
+  --breath-ease: cubic-bezier(0.37, 0, 0.32, 1);
 }
 
-.breath-stage > * {
+/* 花の後ろの、ごく淡いにじみ */
+.breath-halo {
   position: absolute;
   top: 50%;
   left: 50%;
+  width: 240px;
+  height: 240px;
+  margin: -120px 0 0 -120px;
   border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0.55);
-  transition: transform 4s cubic-bezier(0.37, 0, 0.32, 1),
-              opacity 4s cubic-bezier(0.37, 0, 0.32, 1);
+  background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+  opacity: 0.06;
+  filter: blur(18px);
+  transform: scale(0.55);
+  transition: transform var(--breath-dur) var(--breath-ease),
+              opacity   var(--breath-dur) var(--breath-ease);
 }
 
-.breath-core {
-  width: 96px;
-  height: 96px;
+/* 花全体。ここだけが動く */
+.breath-petals {
+  position: absolute;
+  inset: 0;
+  transform: rotate(0deg) scale(0.42);
+  opacity: 0.72;
+  transition: transform var(--breath-dur) var(--breath-ease),
+              opacity   var(--breath-dur) var(--breath-ease);
+}
+
+/* 花びらの位置は固定。--a が向き、translateY がその向きへの押し出し */
+.petal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 112px;
+  height: 112px;
+  margin: -56px 0 0 -56px;
+  border-radius: 50%;
   background: var(--accent);
-  opacity: 0.16;
+  opacity: 0.22;
+  mix-blend-mode: multiply;
+  transform: rotate(var(--a)) translateY(-40px);
 }
 
-.breath-ring {
-  border: 1px solid var(--accent);
-  opacity: 0.3;
+/* 暗い配色では、重なりが濃くなるのではなく明るくなるほうが自然 */
+@media (prefers-color-scheme: dark) {
+  .petal { mix-blend-mode: screen; opacity: 0.18; }
 }
-
-.ring-1 { width: 132px; height: 132px; transition-delay: 0.12s; }
-.ring-2 { width: 176px; height: 176px; transition-delay: 0.26s; opacity: 0.2; }
-.ring-3 { width: 220px; height: 220px; transition-delay: 0.4s; opacity: 0.12; }
-
-.breath-glow {
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, var(--accent) 0%, transparent 68%);
-  opacity: 0.1;
-  filter: blur(14px);
-}
-
-/* 外周をなぞる弧。吸う・吐くのあいだ、ゆっくり一周する */
-.breath-arc {
-  width: 232px;
-  height: 232px;
-  transform: translate(-50%, -50%) rotate(-90deg);
-  transition: none;
-  overflow: visible;
-}
-
-.breath-arc circle {
-  fill: none;
-  stroke-width: 1;
-  stroke-linecap: round;
-}
-
-.breath-arc-track { stroke: var(--border); opacity: 0.5; }
-
-.breath-arc-line {
-  stroke: var(--accent);
-  stroke-dasharray: 289;
-  stroke-dashoffset: 289;
-  transition: stroke-dashoffset 4s cubic-bezier(0.37, 0, 0.32, 1);
-}
-
-/* ---- 吸う ---- */
-.breath-stage.inhale .breath-core { transform: translate(-50%, -50%) scale(1); opacity: 0.26; }
-.breath-stage.inhale .breath-ring { transform: translate(-50%, -50%) scale(1); }
-.breath-stage.inhale .ring-1 { opacity: 0.42; }
-.breath-stage.inhale .ring-2 { opacity: 0.3; }
-.breath-stage.inhale .ring-3 { opacity: 0.2; }
-.breath-stage.inhale .breath-glow { transform: translate(-50%, -50%) scale(1.1); opacity: 0.3; }
-.breath-stage.inhale .breath-arc-line { stroke-dashoffset: 0; }
-
-/* ---- 吐く ---- */
-.breath-stage.exhale > *:not(.breath-arc) {
-  transform: translate(-50%, -50%) scale(0.55);
-  transition-duration: 5s;
-}
-.breath-stage.exhale .breath-core { opacity: 0.16; }
-.breath-stage.exhale .breath-ring { opacity: 0.3; }
-.breath-stage.exhale .ring-2 { opacity: 0.2; }
-.breath-stage.exhale .ring-3 { opacity: 0.12; }
-.breath-stage.exhale .breath-glow { opacity: 0.1; }
-.breath-stage.exhale .breath-arc-line {
-  stroke-dashoffset: 289;
-  transition-duration: 5s;
-}
-
-.breath-guide {
-  margin-top: 32px;
-  margin-bottom: 0;
-  font-size: 17px;
-  color: var(--ink-soft);
-  letter-spacing: 0.3em;
-}
-
-.breath-count {
-  margin-top: 12px;
-  font-size: 13px;
-  color: var(--ink-faint);
-  letter-spacing: 0.3em;
-}
-
-.daily-lead {
-  margin: 0 0 20px;
-  font-size: 15px;
-  color: var(--ink-soft);
-  letter-spacing: 0.25em;
-  animation: fadeIn 1.4s ease both 0.2s;
-}
-
-.daily-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 26px 24px;
-  animation: fadeIn 1.8s ease both 0.4s;
-}
-
-.daily-sutra {
-  margin: 0 0 16px;
-  font-size: 13px;
-  color: var(--accent);
-  letter-spacing: 0.05em;
-}
-
-.daily-text {
-  margin: 0;
-  font-size: 17px;
-  line-height: 2;
-}
-
-/* 読み上げ中の段落だけを濃くする。目を開けている人が、
-   今どこを読まれているか追えるようにするため。 */
-.daily-text .para {
-  margin: 0 0 1.4em;
-  opacity: 0.45;
-  transition: opacity 0.6s ease;
-}
-
-.daily-text .para:last-child { margin-bottom: 0; }
-.daily-text .para.reading { opacity: 1; }
-
-/* 読み上げを使わない設定のときは、全部を同じ濃さで見せる */
-.no-voice .daily-text .para { opacity: 1; }
 
 /* ---------- 画面1:選択 ---------- */
 .eyebrow {
@@ -616,11 +528,7 @@ body {
     animation: none !important;
   }
 
-  /* 呼吸だけは残す。ゆっくりした拡大縮小なので、幅を控えめにして続ける */
-  .breath-stage.exhale > *:not(.breath-arc) {
-    transform: translate(-50%, -50%) scale(0.82);
-  }
-  .breath-glow {
-    display: none;   /* にじみは目が疲れる人がいるので外す */
-  }
+  /* 呼吸だけは残す。息の案内そのものなので消せない。
+     ただし開き幅は狭め、にじみは外す。回転は JS 側で止める。 */
+  .breath-halo { display: none; }
 }

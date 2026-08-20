@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 
-<link rel="stylesheet" href="style.css?v=31">
+<link rel="stylesheet" href="style.css?v=34">
 </head>
 <body>
 
@@ -79,16 +79,17 @@
 
   <!-- 画面2:呼吸 -->
   <section id="screen-open" class="screen center" hidden>
+    <!-- 六つの円が、息に合わせて開いて閉じる。重なりが花のように見える。 -->
     <div class="breath-stage" id="breath-circle">
-      <div class="breath-glow"></div>
-      <div class="breath-ring ring-3"></div>
-      <div class="breath-ring ring-2"></div>
-      <div class="breath-ring ring-1"></div>
-      <div class="breath-core"></div>
-      <svg class="breath-arc" viewBox="0 0 100 100" aria-hidden="true">
-        <circle class="breath-arc-track" cx="50" cy="50" r="46" />
-        <circle class="breath-arc-line" cx="50" cy="50" r="46" />
-      </svg>
+      <div class="breath-halo"></div>
+      <div class="breath-petals" id="breath-petals">
+        <span class="petal" style="--a:0deg"></span>
+        <span class="petal" style="--a:60deg"></span>
+        <span class="petal" style="--a:120deg"></span>
+        <span class="petal" style="--a:180deg"></span>
+        <span class="petal" style="--a:240deg"></span>
+        <span class="petal" style="--a:300deg"></span>
+      </div>
     </div>
     <p class="breath-guide" id="breath-guide">吸って</p>
     <p class="breath-count" id="breath-count"></p>
@@ -161,9 +162,9 @@
 
 </main>
 
-<script src="data.js?v=31"></script>
-<script src="passages.js?v=31"></script>
-<script src="speech.js?v=31"></script>
-<script src="app.js?v=31"></script>
+<script src="data.js?v=34"></script>
+<script src="passages.js?v=34"></script>
+<script src="speech.js?v=34"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>

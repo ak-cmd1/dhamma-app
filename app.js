@@ -24,7 +24,7 @@
 
   const OPEN_INHALE_MS = 4000;
   const OPEN_EXHALE_MS = 5000;
-  const OPEN_BREATHS = 2;
+  const OPEN_BREATHS = 3;
 
   const screens = {
     start: document.getElementById("screen-start"),
@@ -77,6 +77,7 @@
   function stopRun() {
     runId += 1;
     Speech.cancel();
+    stopBreathTone();
   }
 
   // ---------- 設定(端末に保存) ----------
@@ -280,10 +281,13 @@
   //   ・撞いた瞬間の打撃音(短いノイズ)
   //   ・わずかに音程をずらした倍音の対 → うなり(音が揺れて聞こえる元)
   //   ・長く尾を引く残響
-  let bellReverb = null;
+  // 響きは一度だけ作り、鐘も呼吸の音も同じものを通す。
+  // (以前は鐘を撞くたびに出口を作り足していたので、
+  //  三回続けて撞くと響きだけが三倍に膨らんでいた)
+  let reverbIn = null;
 
   function getReverb(ctx) {
-    if (bellReverb) return bellReverb;
+    if (reverbIn) return reverbIn;
     const sec = 3.2;
     const len = Math.floor(ctx.sampleRate * sec);
     const buf = ctx.createBuffer(2, len, ctx.sampleRate);
@@ -296,7 +300,13 @@
     }
     const conv = ctx.createConvolver();
     conv.buffer = buf;
-    bellReverb = conv;
+
+    const wet = ctx.createGain();
+    wet.gain.value = 0.32;
+    conv.connect(wet);
+    wet.connect(ctx.destination);
+
+    reverbIn = conv;
     return conv;
   }
 
@@ -322,12 +332,8 @@
     dry.gain.value = 0.75;
     dry.connect(ctx.destination);
 
-    const wet = ctx.createGain();
-    wet.gain.value = 0.32;
-    wet.connect(ctx.destination);
-
     master.connect(dry);
-    try { master.connect(getReverb(ctx)).connect(wet); } catch (e) { /* 残響なしでも鳴る */ }
+    try { master.connect(getReverb(ctx)); } catch (e) { /* 残響なしでも鳴る */ }
 
     partials.forEach(function (p) {
       // 同じ倍音を、ほんの少しだけ音程をずらして二本鳴らす。
@@ -376,6 +382,79 @@
   function strikeBell(times) {
     const n = times || 1;
     for (let i = 0; i < n; i += 1) playBell(i * 2.8);
+  }
+
+  // ---------- 呼吸に添える音 ----------
+  // 目を閉じたままでも「いま息のどのあたりか」が分かるように、
+  // 息に沿って高さがゆっくり変わる音を鳴らす。吸うと上がり、吐くと下がる。
+  // 折り返しだけを知らせる鈴と違い、息の途中もずっと分かるのが利点。
+  const BREATH_LOW = 174.6;    // 吐ききったところ
+  const BREATH_HIGH = 261.6;   // 吸いきったところ(五度上)
+  let breathTone = null;
+
+  function startBreathTone() {
+    const ctx = getAudioCtx();
+    if (!ctx || breathTone) return;
+
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = BREATH_LOW;
+
+    // 高い倍音を落として、耳に刺さらない柔らかい音にする
+    const filt = ctx.createBiquadFilter();
+    filt.type = "lowpass";
+    filt.frequency.value = 1100;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.0001;
+
+    osc.connect(filt);
+    filt.connect(gain);
+    gain.connect(ctx.destination);
+
+    // 鐘と同じ堂の中で鳴っているように、控えめに響かせる
+    try {
+      const send = ctx.createGain();
+      send.gain.value = 0.35;
+      gain.connect(send);
+      send.connect(getReverb(ctx));
+    } catch (e) {}
+
+    osc.start();
+    breathTone = { osc: osc, gain: gain };
+  }
+
+  // 一息ぶん、音の高さと大きさを動かす。吐くほうは少し小さくする。
+  function breathTonePhase(inhale, ms) {
+    if (!breathTone || !audioCtx) return;
+    const t = audioCtx.currentTime;
+    const dur = Math.max(0.2, (ms || 4000) / 1000);
+    const f = breathTone.osc.frequency;
+    const g = breathTone.gain.gain;
+    try {
+      f.cancelScheduledValues(t);
+      f.setValueAtTime(Math.max(1, f.value), t);
+      f.exponentialRampToValueAtTime(inhale ? BREATH_HIGH : BREATH_LOW, t + dur * 0.95);
+
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(Math.max(0.0001, g.value), t);
+      g.linearRampToValueAtTime(inhale ? 0.075 : 0.055, t + dur * 0.30);
+      g.linearRampToValueAtTime(inhale ? 0.070 : 0.018, t + dur * 0.92);
+    } catch (e) {}
+  }
+
+  function stopBreathTone() {
+    if (!breathTone) return;
+    const tone = breathTone;
+    breathTone = null;
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    try {
+      tone.gain.gain.cancelScheduledValues(t);
+      tone.gain.gain.setValueAtTime(Math.max(0.0001, tone.gain.gain.value), t);
+      tone.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+      tone.osc.stop(t + 1.1);
+    } catch (e) {}
   }
 
   // ---------- 画面が消えないようにする ----------
@@ -454,27 +533,59 @@
   // ---- 呼吸 ----
   async function runBreath(my) {
     showScreen("open");
-    const circle = el("breath-circle");
+    const stage = el("breath-circle");
+    const petals = el("breath-petals");
     const guide = el("breath-guide");
     const count = el("breath-count");
-    const counters = ["ひとつ", "ふたつ", "みっつ", "よっつ"];
+    const counters = ["ひとつ", "ふたつ", "みっつ", "よっつ", "いつつ"];
 
-    for (let i = 0; i < OPEN_BREATHS; i += 1) {
-      if (my !== runId) throw "stopped";
-      count.textContent = counters[i] || "";
+    startBreathTone();
+    let turn = 0;   // 花が開くたび、同じ向きへ少しずつ回していく
 
-      guide.textContent = "吸って";
-      circle.classList.remove("exhale");
-      circle.classList.add("inhale");
-      Speech.speak("吸って");
-      await wait(OPEN_INHALE_MS);
-      if (my !== runId) throw "stopped";
+    // 一息の片道ぶん。見た目・音・声を、同じ長さで揃える。
+    // 花びらは放射状に固定しておき、動かすのは花全体の拡大と回転だけ。
+    // 六枚それぞれを動かしても同じ絵になるが、動かす対象が一つで済み、
+    // 端末への負担も軽い。
+    const halo = stage.querySelector(".breath-halo");
+    const gentle = reduceMotion();
+    const openScale = gentle ? 0.86 : 1;      // 吸いきったときの大きさ
+    const closeScale = gentle ? 0.66 : 0.42;  // 吐ききったときの大きさ
 
-      guide.textContent = "吐いて";
-      circle.classList.remove("inhale");
-      circle.classList.add("exhale");
-      Speech.speak("吐いて");
-      await wait(OPEN_EXHALE_MS);
+    function phase(inhale, ms) {
+      // 動きの長さを、吸う・吐くそれぞれに合わせて先に効かせる
+      stage.style.setProperty("--breath-dur", ms + "ms");
+      void stage.offsetWidth;
+
+      if (!gentle) turn += 60;   // 息のたび、同じ向きへ少しずつ回す
+      petals.style.transform =
+        "rotate(" + turn + "deg) scale(" + (inhale ? openScale : closeScale) + ")";
+      petals.style.opacity = inhale ? "1" : "0.72";
+      if (halo) {
+        halo.style.transform = "scale(" + (inhale ? 1.1 : 0.55) + ")";
+        halo.style.opacity = inhale ? "0.16" : "0.06";
+      }
+      breathTonePhase(inhale, ms);
+    }
+
+    try {
+      for (let i = 0; i < OPEN_BREATHS; i += 1) {
+        if (my !== runId) throw "stopped";
+        count.textContent = counters[i] || "";
+
+        guide.textContent = "吸って";
+        phase(true, OPEN_INHALE_MS);
+        // 目を閉じている人にも何息目か分かるよう、数も声に出す
+        Speech.speak((counters[i] || "") + "。吸って");
+        await wait(OPEN_INHALE_MS);
+        if (my !== runId) throw "stopped";
+
+        guide.textContent = "吐いて";
+        phase(false, OPEN_EXHALE_MS);
+        Speech.speak("吐いて");
+        await wait(OPEN_EXHALE_MS);
+      }
+    } finally {
+      stopBreathTone();
     }
   }
 
