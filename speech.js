@@ -244,7 +244,11 @@ const Speech = (function () {
     const raw = String(text || "").trim();
     if (!raw) return Promise.resolve();
 
-    if (!supported || !enabled || !voice) {
+    // 声の一覧が空でも、とにかく喋らせてみる。
+    // iPhone は getVoices() が空のまま返ることがあり、
+    // 「声が見つからない = 何も言わない」では手の打ちようがなくなる。
+    // 一覧が取れていれば voice を指定し、取れていなければ言語だけ伝える。
+    if (!supported || !enabled) {
       return new Promise(function (resolve) {
         setTimeout(resolve, estimateMs(raw));
       });
@@ -261,8 +265,8 @@ const Speech = (function () {
       };
 
       const u = new SpeechSynthesisUtterance(spoken);
-      u.voice = voice;
-      u.lang = voice.lang || "ja-JP";
+      if (voice) u.voice = voice;
+      u.lang = (voice && voice.lang) || "ja-JP";
       u.rate = rate;
       u.pitch = 1;
       u.onend = finish;
@@ -272,6 +276,8 @@ const Speech = (function () {
       setTimeout(finish, estimateMs(spoken) * 2 + 4000);
 
       try {
+        // 眠らされたまま戻ってこないことがあるので、起こしてから話させる
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
         window.speechSynthesis.speak(u);
       } catch (e) {
         finish();
@@ -284,6 +290,66 @@ const Speech = (function () {
     if (supported) {
       try { window.speechSynthesis.cancel(); } catch (e) {}
     }
+  }
+
+  // ---- 音が出ないときの手がかり ----
+  // iPhone の不調はこちらから再現できないので、端末が何を返しているかを
+  // 本人の画面に出せるようにしておく。
+  function diagnose() {
+    const out = {
+      読み上げの仕組み: supported ? "あり" : "なし",
+      声の総数: 0,
+      日本語の声: 0,
+      使う声: "(なし)",
+      止められている: "いいえ"
+    };
+    if (supported) {
+      const vs = window.speechSynthesis.getVoices() || [];
+      out.声の総数 = vs.length;
+      out.日本語の声 = vs.filter(function (v) {
+        return /^ja(-|_|$)/i.test(v.lang || "");
+      }).length;
+      out.使う声 = voice ? voice.name : "(一覧に無い)";
+      out.止められている = window.speechSynthesis.paused ? "はい" : "いいえ";
+    }
+    return out;
+  }
+
+  // 実際に一言しゃべらせて、「本当に始まったか」を見る。
+  // 無音のまま終わるのか、そもそも始まらないのかを切り分けるため。
+  function testSpeak(text) {
+    return new Promise(function (resolve) {
+      if (!supported) {
+        resolve({ 始まった: false, 理由: "この端末には読み上げの仕組みがありません" });
+        return;
+      }
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+      const u = new SpeechSynthesisUtterance(applyFixes(String(text || "聞こえますか")));
+      if (voice) u.voice = voice;
+      u.lang = (voice && voice.lang) || "ja-JP";
+      u.rate = rate;
+
+      let started = false, ended = false, failed = null;
+      u.onstart = function () { started = true; };
+      u.onend = function () { ended = true; };
+      u.onerror = function (e) { failed = (e && e.error) || "不明"; };
+
+      try {
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+        window.speechSynthesis.speak(u);
+      } catch (e) {
+        resolve({ 始まった: false, 理由: "呼び出しそのものが失敗しました" });
+        return;
+      }
+
+      setTimeout(function () {
+        resolve({
+          始まった: started || window.speechSynthesis.speaking,
+          終わった: ended,
+          理由: failed ? ("エラー:" + failed) : ""
+        });
+      }, 2000);
+    });
   }
 
   // iPhone は、利用者が一度画面に触れるまで音を出せない。
@@ -305,12 +371,15 @@ const Speech = (function () {
     spokenSutra: spokenSutra,
     applyFixes: applyFixes,
     splitForSpeech: splitForSpeech,   // 動作確認用
-    isSupported: function () { return supported && !!voice; },
+    isSupported: function () { return supported; },
+    hasVoiceList: function () { return !!voice; },
     setRate: function (r) { rate = r; },
     getRate: function () { return rate; },
     setEnabled: function (b) { enabled = !!b; },
     isEnabled: function () { return enabled; },
     voiceName: function () { return voice ? voice.name : "(なし)"; },
-    refreshVoice: refreshVoice
+    refreshVoice: refreshVoice,
+    diagnose: diagnose,
+    testSpeak: testSpeak
   };
 })();

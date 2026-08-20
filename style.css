@@ -134,6 +134,14 @@ body {
   line-height: 1.7;
 }
 
+/* 端末が返した中身をそのまま出す行。読み物ではないので、うんと控えめに。 */
+.faint-note {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-faint);
+  word-break: break-word;
+}
+
 /* ---------- 画面1:三帰依 ---------- */
 .refuge-list {
   display: flex;
@@ -531,4 +539,13 @@ body {
   /* 呼吸だけは残す。息の案内そのものなので消せない。
      ただし開き幅は狭め、にじみは外す。回転は JS 側で止める。 */
   .breath-halo { display: none; }
+}
+
+/* 版番号。読み物ではないので、いちばん控えめに置く */
+.build-tag {
+  margin: 18px 0 0;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  opacity: 0.55;
 }

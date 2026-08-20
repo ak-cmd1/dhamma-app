@@ -22,6 +22,10 @@
     dedication: 4000
   };
 
+  // 版番号。index.html の ?v= と必ず揃える。
+  // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
+  const BUILD = 36;
+
   const OPEN_INHALE_MS = 4000;
   const OPEN_EXHALE_MS = 5000;
   const OPEN_BREATHS = 3;
@@ -476,9 +480,18 @@
   // 戻ってきたときに時計と突き合わせて残りを計算し直す。
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") return;
+
+    // 眠っているあいだに読み上げが止められていることがある。
+    // 戻ってきたら起こしてやらないと、そこから先へ進まない。
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+    } catch (e) {}
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+
     if (screens.sitting.hidden) return;
     requestWakeLock();
-    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
     recheckSitting();
   });
 
@@ -489,6 +502,10 @@
     stopRun();
     Speech.refreshVoice();
     applyVoiceSetting();     // 声の有無を、始める直前にもう一度確かめる
+    // 案内のあいだも画面を消させない。
+    // 画面が消えると読み上げがそこで止まったまま戻らない端末があり、
+    // 目を閉じている人は「急に何も言わなくなった」状態に置き去りになる。
+    requestWakeLock();
     const my = runId;
     isWalking = false;
     skipPassage = false;
@@ -839,6 +856,7 @@
 
     showScreen("done");
     await say("終わりました。", 0, my);
+    releaseWakeLock();   // 案内のあいだ保っていた画面を、ここで解放する
   }
 
   // ---- 坐れない日の道 ----
@@ -943,6 +961,57 @@
     showScreen("done");
   });
 
+  // ---------- 音の確認 ----------
+  // 音が出ないという相談を、こちらでは再現できない。
+  // 端末が何を返しているかをそのまま画面に出し、
+  // 声・鐘・呼吸の音を一つずつ試せるようにしておく。
+  function showDeviceInfo() {
+    const d = Speech.diagnose();
+    const 立ち上げ方 =
+      (window.navigator.standalone === true ||
+       (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches))
+        ? "ホーム画面から" : "ブラウザから";
+    const 音の状態 = audioCtx ? audioCtx.state : "まだ作っていない";
+    el("device-info").textContent =
+      "読み上げの仕組み:" + d.読み上げの仕組み +
+      " / 声の数:" + d.声の総数 + "(日本語 " + d.日本語の声 + ")" +
+      " / 使う声:" + d.使う声 +
+      " / 止められている:" + d.止められている +
+      " / 立ち上げ方:" + 立ち上げ方 +
+      " / 音の状態:" + 音の状態;
+  }
+
+  el("test-voice-btn").addEventListener("click", async function () {
+    unlockAudio();
+    Speech.refreshVoice();
+    Speech.setEnabled(true);
+    el("test-result").textContent = "声を出しています…(2秒お待ちください)";
+    const r = await Speech.testSpeak("聞こえますか。これは声の確認です。");
+    el("test-result").textContent = r.始まった
+      ? "声:鳴り始めました。聞こえなければ、消音スイッチか音量です。"
+      : "声:鳴り始めませんでした。" + (r.理由 || "この端末では読み上げが動いていません。");
+    showDeviceInfo();
+  });
+
+  el("test-bell-btn").addEventListener("click", function () {
+    unlockAudio();
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    strikeBell(1);
+    el("test-result").textContent = "鐘:鳴らしました。聞こえなければ、消音スイッチか音量です。";
+    showDeviceInfo();
+  });
+
+  el("test-breath-btn").addEventListener("click", function () {
+    unlockAudio();
+    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    startBreathTone();
+    breathTonePhase(true, 2000);
+    setTimeout(function () { breathTonePhase(false, 2000); }, 2000);
+    setTimeout(stopBreathTone, 4200);
+    el("test-result").textContent = "呼吸の音:4秒ぶん鳴らしました(上がって下がります)。";
+    showDeviceInfo();
+  });
+
   el("resume-btn").addEventListener("click", function () {
     unlockAudio();
     resumeSit();
@@ -989,6 +1058,7 @@
   el("settings-btn").addEventListener("click", function () {
     Speech.refreshVoice();
     renderSettings();
+    showDeviceInfo();
     showScreen("settings");
   });
 
@@ -1058,6 +1128,7 @@
     });
   }
   el("start-date").textContent = formatDate(todayDate());
+  el("build-tag").textContent = "第" + BUILD + "版";
 
   // 坐りかけがあれば、続きから坐れるように案内する
   (function () {

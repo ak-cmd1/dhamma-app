@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 
-<link rel="stylesheet" href="style.css?v=34">
+<link rel="stylesheet" href="style.css?v=36">
 </head>
 <body>
 
@@ -37,6 +37,10 @@
       <button class="link-btn" id="choose-btn">今日の気分から選ぶ</button>
       <button class="link-btn faint" id="settings-btn">設定</button>
     </div>
+
+    <!-- どの版を見ているか、ひと目で分かるようにする。
+         古い版が端末に残っていると「作ったのに無い」が起きるため。 -->
+    <p class="build-tag" id="build-tag"></p>
   </section>
 
   <!-- 画面0c:気分から選ぶ(目を閉じる前の段階なので、ここだけ操作が入る) -->
@@ -65,6 +69,18 @@
     <div class="setting-row">
       <p class="setting-label">声の速さ</p>
       <div class="setting-choices" id="rate-choices"></div>
+    </div>
+
+    <!-- 音が出ないときのための確認。端末が何を返しているかをそのまま出す。 -->
+    <div class="setting-row">
+      <p class="setting-label">音の確認</p>
+      <div class="setting-choices">
+        <button class="chip" id="test-voice-btn">声を試す</button>
+        <button class="chip" id="test-bell-btn">鐘を試す</button>
+        <button class="chip" id="test-breath-btn">呼吸の音</button>
+      </div>
+      <p class="setting-note" id="test-result">押すと、その場で鳴らします。</p>
+      <p class="setting-note faint-note" id="device-info"></p>
     </div>
 
     <div class="actions">
@@ -162,9 +178,9 @@
 
 </main>
 
-<script src="data.js?v=34"></script>
-<script src="passages.js?v=34"></script>
-<script src="speech.js?v=34"></script>
-<script src="app.js?v=34"></script>
+<script src="data.js?v=36"></script>
+<script src="passages.js?v=36"></script>
+<script src="speech.js?v=36"></script>
+<script src="app.js?v=36"></script>
 </body>
 </html>
