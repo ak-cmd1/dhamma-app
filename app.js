@@ -24,7 +24,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 36;
+  const BUILD = 37;
 
   const OPEN_INHALE_MS = 4000;
   const OPEN_EXHALE_MS = 5000;
@@ -1144,9 +1144,28 @@
 
   showScreen("start");
 
+  // 新しい版が出ていたら、自分で入れ替わる。
+  // これが無いと、公開しても端末に古いものが残り続け、
+  // そのたびにホーム画面から消して入れ直す手間が発生していた。
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("service-worker.js").then(function (reg) {
+        try { reg.update(); } catch (e) {}
+        // 戻ってくるたびに、新しい版が出ていないか確かめる
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "visible") { try { reg.update(); } catch (e) {} }
+        });
+      }).catch(function () {});
+
+      // 新しい中身に入れ替わった合図。最初の画面にいるときだけ読み直す。
+      // 案内や坐禅の途中で読み直すと、そこで流れが切れてしまう。
+      let reloading = false;
+      navigator.serviceWorker.addEventListener("controllerchange", function () {
+        if (reloading) return;
+        if (!screens.start || screens.start.hidden) return;
+        reloading = true;
+        window.location.reload();
+      });
     });
   }
 

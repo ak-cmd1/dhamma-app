@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>音の確認</title>
+<style>
+  :root { --bg:#f4efe4; --ink:#35302a; --soft:#6f6558; --accent:#6b5a45; --card:#fffdf8; --line:#e3dac8; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1c1a17; --ink:#ece6d9; --soft:#b3a996; --accent:#c9b28b; --card:#26231f; --line:#3a352c; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; padding:24px 20px 60px; background:var(--bg); color:var(--ink);
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;
+    line-height:1.8; max-width:520px; margin-inline:auto;
+  }
+  h1 { font-size:22px; margin:0 0 6px; }
+  .lead { color:var(--soft); font-size:14px; margin:0 0 24px; }
+  button {
+    display:block; width:100%; padding:18px; margin:0 0 12px;
+    font-family:inherit; font-size:17px; font-weight:600;
+    border:none; border-radius:14px; background:var(--accent); color:var(--bg);
+    cursor:pointer; -webkit-appearance:none;
+  }
+  button.sub { background:var(--card); color:var(--ink); border:1px solid var(--line); font-weight:500; }
+  .out {
+    margin:6px 0 26px; padding:16px; border-radius:12px;
+    background:var(--card); border:1px solid var(--line);
+    font-size:15px; min-height:1.8em;
+  }
+  .big { font-size:18px; font-weight:700; }
+  .ok { color:#2e7d4f; }
+  .ng { color:#b3402f; }
+  h2 { font-size:15px; margin:30px 0 10px; color:var(--soft); letter-spacing:.06em; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td { padding:7px 0; border-bottom:1px solid var(--line); vertical-align:top; }
+  td:first-child { color:var(--soft); width:44%; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>音の確認</h1>
+<p class="lead">経典アプリで音が出ないとき、この画面で原因を調べます。上から順に押してください。</p>
+
+<h2>① いちばん大事な確認</h2>
+<button id="b-voice">声を試す</button>
+<div class="out" id="o-voice">押すと、2秒ほどで結果が出ます。</div>
+
+<h2>② 鐘の音</h2>
+<button id="b-bell">鐘を鳴らす</button>
+<div class="out" id="o-bell">押すと、その場で鳴らします。</div>
+
+<h2>③ この端末が答えている内容</h2>
+<table id="info"></table>
+
+<h2>④ アプリが古いままのとき</h2>
+<button class="sub" id="b-reset">端末に残っている古い中身を消す</button>
+<div class="out" id="o-reset">押すと、次にアプリを開いたとき必ず最新になります。</div>
+
+<p style="margin-top:30px"><a href="./">← 経典アプリへ戻る</a></p>
+
+<script>
+function el(id){ return document.getElementById(id); }
+
+/* ---- 端末が答えている内容を並べる ---- */
+function jaVoices(){
+  if (!("speechSynthesis" in window)) return [];
+  return (speechSynthesis.getVoices()||[]).filter(v => /^ja(-|_|$)/i.test(v.lang||""));
+}
+function showInfo(){
+  var all = ("speechSynthesis" in window) ? (speechSynthesis.getVoices()||[]) : [];
+  var ja = jaVoices();
+  var standalone = (window.navigator.standalone === true) ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  var rows = [
+    ["読み上げの仕組み", ("speechSynthesis" in window) ? "あり" : "なし"],
+    ["声の総数", all.length],
+    ["日本語の声", ja.length + (ja.length ? "(" + ja.map(v=>v.name).join("、") + ")" : "")],
+    ["止められているか", ("speechSynthesis" in window && speechSynthesis.paused) ? "はい" : "いいえ"],
+    ["開き方", standalone ? "ホーム画面のアプリから" : "ブラウザ(Safari など)から"],
+    ["端末", navigator.userAgent.slice(0,90)]
+  ];
+  el("info").innerHTML = rows.map(r => "<tr><td>"+r[0]+"</td><td>"+r[1]+"</td></tr>").join("");
+}
+showInfo();
+if ("speechSynthesis" in window) speechSynthesis.onvoiceschanged = showInfo;
+
+/* ---- ① 声 ---- */
+el("b-voice").addEventListener("click", function(){
+  var o = el("o-voice");
+  if (!("speechSynthesis" in window)) {
+    o.innerHTML = '<span class="big ng">この端末には読み上げの仕組みがありません。</span>';
+    return;
+  }
+  o.textContent = "声を出しています…";
+  try { speechSynthesis.cancel(); } catch(e){}
+  var u = new SpeechSynthesisUtterance("聞こえますか。これは声の確認です。");
+  var ja = jaVoices();
+  if (ja.length) u.voice = ja[0];
+  u.lang = "ja-JP";
+  u.rate = 0.92;
+  var started=false, ended=false, failed=null;
+  u.onstart = function(){ started = true; };
+  u.onend   = function(){ ended = true; };
+  u.onerror = function(e){ failed = (e && e.error) || "不明"; };
+  try {
+    if (speechSynthesis.paused) speechSynthesis.resume();
+    speechSynthesis.speak(u);
+  } catch(e){
+    o.innerHTML = '<span class="big ng">呼び出しそのものが失敗しました。</span>';
+    return;
+  }
+  setTimeout(function(){
+    var 動いた = started || speechSynthesis.speaking || ended;
+    if (動いた) {
+      o.innerHTML = '<span class="big ok">声は鳴り始めました。</span><br>' +
+        'それでも聞こえないなら、<b>本体左側の消音スイッチ</b>(オレンジが見えていたら消音中)か、<b>音量</b>です。';
+    } else {
+      o.innerHTML = '<span class="big ng">声が鳴り始めませんでした。</span><br>' +
+        (failed ? ("理由:" + failed + "<br>") : "") +
+        'この端末では読み上げが動いていません。下の④を押してから、もう一度お試しください。';
+    }
+    showInfo();
+  }, 2200);
+});
+
+/* ---- ② 鐘 ---- */
+el("b-bell").addEventListener("click", function(){
+  var o = el("o-bell");
+  try {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) { o.innerHTML = '<span class="big ng">この端末では音を作れません。</span>'; return; }
+    var ctx = new Ctx();
+    if (ctx.state === "suspended") ctx.resume();
+    var t0 = ctx.currentTime;
+    [[1,0.5,9],[2.76,0.26,6],[5.40,0.13,4]].forEach(function(p){
+      var osc = ctx.createOscillator(); osc.type = "sine";
+      osc.frequency.value = 210 * p[0];
+      var g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(p[1], t0 + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + p[2]);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + p[2] + 0.1);
+    });
+    o.innerHTML = '<span class="big ok">鳴らしました(音の状態:' + ctx.state + ')。</span><br>' +
+      '聞こえないなら、消音スイッチか音量です。<br>' +
+      '<b>鐘は聞こえるのに声だけ出ない場合は、①の結果を教えてください。</b>';
+  } catch(e){
+    o.innerHTML = '<span class="big ng">鳴らせませんでした:' + e.message + '</span>';
+  }
+});
+
+/* ---- ④ 古い中身を消す ---- */
+el("b-reset").addEventListener("click", async function(){
+  var o = el("o-reset");
+  o.textContent = "消しています…";
+  var 消した = { 仕組み: 0, 控え: 0 };
+  try {
+    if ("serviceWorker" in navigator) {
+      var rs = await navigator.serviceWorker.getRegistrations();
+      for (var i=0; i<rs.length; i++) { await rs[i].unregister(); 消した.仕組み++; }
+    }
+    if (window.caches) {
+      var ks = await caches.keys();
+      for (var j=0; j<ks.length; j++) { await caches.delete(ks[j]); 消した.控え++; }
+    }
+    o.innerHTML = '<span class="big ok">消しました。</span><br>' +
+      '古い仕組み ' + 消した.仕組み + '個 / 古い控え ' + 消した.控え + '個<br>' +
+      'このあと <a href="./">経典アプリ</a> を開くと、必ず最新になります。';
+  } catch(e){
+    o.innerHTML = '<span class="big ng">消せませんでした:' + e.message + '</span>';
+  }
+});
+</script>
+</body>
+</html>
