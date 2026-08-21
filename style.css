@@ -574,3 +574,30 @@ body {
   letter-spacing: 0.06em;
   color: var(--ink-faint);
 }
+
+/* ---------- 発心 ----------
+   坐る直前の一撃。説明ではないので、字を大きく、行を空けて、
+   一行ずつ立たせる。飾りは置かない。 */
+.hosshin-sutra {
+  margin: 0 0 26px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
+}
+
+.hosshin-text {
+  width: 100%;
+  text-align: center;
+}
+
+.hosshin-text .para {
+  margin: 0 0 1.6em;
+  font-size: 21px;
+  line-height: 2.1;
+  font-weight: 500;
+  opacity: 0.4;
+  transition: opacity 0.6s ease;
+}
+.hosshin-text .para:last-child { margin-bottom: 0; }
+.hosshin-text .para.reading { opacity: 1; }
+body.no-voice .hosshin-text .para { opacity: 1; }

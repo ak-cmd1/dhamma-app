@@ -32,7 +32,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 43;
+  const BUILD = 44;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -52,6 +52,7 @@
     after: document.getElementById("screen-after"),
     aim: document.getElementById("screen-aim"),
     dedication: document.getElementById("screen-dedication"),
+    hosshin: document.getElementById("screen-hosshin"),
     done: document.getElementById("screen-done")
   };
 
@@ -530,6 +531,7 @@
       await runBreath(my);
       await runPosture(my);   // 経典より先に姿勢を作る。聴き終えたら動かずに坐へ入れる
       await runPassage(my);
+      await runHosshin(my);   // 坐へ向かわせる一撃。理解のあとに切迫を置く
       await runClosing(my);   // 締め + 今日の坐り方をまとめて
       await runSitting(my);
     } catch (e) {
@@ -657,6 +659,41 @@
     nodes.forEach((n) => n.classList.remove("reading"));
     el("skip-btn").hidden = true;
     await wait(skipPassage ? 300 : ma(PAUSE.passage));
+  }
+
+  // ---- 発心 ----
+  // 五蓋に応じた経典は「静める」言葉なので、それだけでは坐へ向かう力にならない。
+  // ここで一撃を入れる。鐘の直前に置くのは、耳に最後に残る言葉が
+  // 沈黙に入る瞬間を決めるため。説明ではないので、短く、行を空けて読む。
+  function todaysHosshin() {
+    if (typeof HOSSHIN === "undefined" || !HOSSHIN.length) return null;
+    return HOSSHIN[pickFromPool("hosshin", HOSSHIN.length)];
+  }
+
+  async function runHosshin(my) {
+    const h = todaysHosshin();
+    if (!h) return;
+    el("hosshin-sutra").textContent = h.sutra;
+    const box = el("hosshin-text");
+    box.innerHTML = "";
+    const lines = h.text.split("\n").filter(function (t) { return t.trim(); });
+    const nodes = lines.map(function (t) {
+      const e = document.createElement("p");
+      e.className = "para";
+      e.textContent = t;
+      box.appendChild(e);
+      return e;
+    });
+    showScreen("hosshin");
+
+    const name = Speech.spokenSutra(h.sutra);
+    if (name) await say(name, ma(700), my);
+    for (let i = 0; i < lines.length; i += 1) {
+      nodes.forEach(function (n, j) { n.classList.toggle("reading", j === i); });
+      await say(lines[i], ma(1000), my);
+    }
+    nodes.forEach(function (n) { n.classList.remove("reading"); });
+    await wait(ma(1200));
   }
 
   // ---- 締め + 今日の坐り方(このあとすぐ鐘が鳴る) ----
