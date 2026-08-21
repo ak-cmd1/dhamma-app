@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 
-<link rel="stylesheet" href="style.css?v=57">
+<link rel="stylesheet" href="style.css?v=58">
 </head>
 <body>
 
@@ -57,8 +57,13 @@
   </section>
 
   <!-- 画面0s:設定 -->
-  <section id="screen-settings" class="screen center" hidden>
-    <p class="method-lead">設定</p>
+  <section id="screen-settings" class="screen" hidden>
+    <!-- 設定は項目が多く、下の「戻る」が画面の外へ出てしまう。
+         上に、常に見えている戻り口を置く。 -->
+    <div class="settings-top">
+      <button class="back-btn" id="settings-back-top">← 戻る</button>
+      <span class="settings-title">設定</span>
+    </div>
 
     <div class="setting-row">
       <p class="setting-label">坐る長さ</p>
@@ -209,13 +214,13 @@
 
 </main>
 
-<script src="audio-map.js?v=57"></script>
-<script src="data.js?v=57"></script>
-<script src="passages.js?v=57"></script>
-<script src="kammatthana.js?v=57"></script>
-<script src="hosshin.js?v=57"></script>
-<script src="elders.js?v=57"></script>
-<script src="speech.js?v=57"></script>
-<script src="app.js?v=57"></script>
+<script src="audio-map.js?v=58"></script>
+<script src="data.js?v=58"></script>
+<script src="passages.js?v=58"></script>
+<script src="kammatthana.js?v=58"></script>
+<script src="hosshin.js?v=58"></script>
+<script src="elders.js?v=58"></script>
+<script src="speech.js?v=58"></script>
+<script src="app.js?v=58"></script>
 </body>
 </html>

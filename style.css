@@ -665,3 +665,50 @@ body.no-voice .hosshin-text .para { opacity: 1; }
   color: var(--ink-faint);
   letter-spacing: 0.06em;
 }
+
+/* ---------- 設定画面の上に置く戻り口 ----------
+   項目が増えて、下の「戻る」が画面の外へ出ていた。
+   上に貼り付けておけば、どこまで下がっても戻れる。 */
+#screen-settings {
+  justify-content: flex-start;   /* 中央寄せだと、上が切れて届かなくなる */
+  align-items: stretch;
+  text-align: left;
+}
+
+.settings-top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 -24px 18px;
+  padding: 6px 24px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.back-btn {
+  min-height: 44px;
+  padding: 10px 16px 10px 4px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.back-btn:active { opacity: 0.55; }
+
+.settings-title {
+  font-size: 14px;
+  letter-spacing: 0.25em;
+  color: var(--ink-soft);
+}
+
+#screen-settings .setting-label,
+#screen-settings .setting-note,
+#screen-settings .slider-ends,
+#screen-settings .credit { text-align: left; }

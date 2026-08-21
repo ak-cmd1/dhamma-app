@@ -31,7 +31,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 57;
+  const BUILD = 58;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -1404,7 +1404,14 @@
     renderSettings();
     showDeviceInfo();
     showAudioState();
+    window.scrollTo(0, 0);
     showScreen("settings");
+  });
+
+  el("settings-back-top").addEventListener("click", function () {
+    Speech.cancel();
+    window.scrollTo(0, 0);
+    showScreen("start");
   });
 
   el("settings-done-btn").addEventListener("click", function () {
