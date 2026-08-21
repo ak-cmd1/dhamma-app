@@ -26,13 +26,12 @@
     method: 1500,     // 坐り方のあと(このあとすぐ鐘)
     after: 8000,      // 坐後の問い ── ここは急がない
     carry: 8000,      // 坐から持ち出す一句
-    aim: 6000,        // 回向の向き先
     dedication: 4000
   };
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 55;
+  const BUILD = 57;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -50,7 +49,6 @@
     closing: document.getElementById("screen-closing"),
     sitting: document.getElementById("screen-sitting"),
     after: document.getElementById("screen-after"),
-    aim: document.getElementById("screen-aim"),
     dedication: document.getElementById("screen-dedication"),
     hosshin: document.getElementById("screen-hosshin"),
     done: document.getElementById("screen-done")
@@ -884,18 +882,36 @@
     return i === list.length ? (guide.instruction || list[0]) : list[i];
   }
 
+  // ---- 今日の業処 ----
+  // 清浄道論の四十業処から、今日の蓋に適するものを日替わりで選ぶ。
+  // 以前は蓋ごとに一つしか用意しておらず、毎回同じ方法しか出てこなかった。
+  // 蓋に適するものを一巡してから、また最初へ戻る。
+  function methodPool(hid) {
+    if (typeof KAMMATTHANA === "undefined") return [];
+    return KAMMATTHANA.filter(function (k) {
+      return k.for === ALL || k.for.indexOf(hid) !== -1;
+    });
+  }
+
+  function todaysMethod(hid) {
+    const id = hid || (current && current.id) || "tanha";
+    const pool = methodPool(id);
+    if (!pool.length) return current && current.sitting ? current.sitting : null;
+    return pool[pickFromPool("kamma:" + id, pool.length)];
+  }
+
   async function runClosing(my) {
-    const m = current.sitting;
+    const m = isWalking && current.walking ? current.walking : (todaysMethod() || current.sitting);
     el("closing-text").textContent = current.closing;
     el("closing-note").textContent = timeOfDay().note;   // 朝・昼・夜で変わる添え文
     el("method-name").textContent = m.name;
-    el("method-short").textContent = sittingShort(m);
+    el("method-short").textContent = m.short || sittingShort(m);
     el("walk-btn").hidden = !current.walking;
     showScreen("closing");
 
     await say(current.closing, ma(600), my);
     await say(timeOfDay().note, ma(PAUSE.closing), my);
-    await say(m.name + "。" + sittingShort(m), ma(PAUSE.method), my);
+    await say(m.name + "。" + (m.short || sittingShort(m)), ma(PAUSE.method), my);
   }
 
   // ---- 身体を整える ----
@@ -921,8 +937,8 @@
   // iPhone は画面を伏せると待ち時間を止めてしまうため、
   // 単純に「何分後」で待つと、鐘が鳴らないまま止まることがある。
   async function runSitting(my) {
-    const guide = isWalking && current.walking ? current.walking : current.sitting;
-    el("sitting-short").textContent = sittingShort(guide);
+    const guide = isWalking && current.walking ? current.walking : (todaysMethod() || current.sitting);
+    el("sitting-short").textContent = guide.short || sittingShort(guide);
     showScreen("sitting");
     requestWakeLock();
     strikeBell(1);
@@ -1004,8 +1020,8 @@
     passage = todaysPassage(current.id);
     isWalking = !!v.walking;
 
-    const guide = isWalking && current.walking ? current.walking : current.sitting;
-    el("sitting-short").textContent = sittingShort(guide);
+    const guide = isWalking && current.walking ? current.walking : (todaysMethod() || current.sitting);
+    el("sitting-short").textContent = guide.short || sittingShort(guide);
     showScreen("sitting");
     requestWakeLock();
 
@@ -1043,13 +1059,6 @@
     el("sit-again-btn").hidden = true;
     await say(carry.text, ma(PAUSE.carry, 4000), my);
 
-    await runAim(my);
-  }
-
-  async function runAim(my) {
-    el("aim-text").textContent = DEDICATION_AIM;
-    showScreen("aim");
-    await say(DEDICATION_AIM.replace(/\n/g, " "), ma(PAUSE.aim, 3000), my);
     await runDedication(my);
   }
 
@@ -1547,6 +1556,8 @@
     },
     pendingSitMinutes: pendingSitMinutes,
     sittingShort: sittingShort,
+    todaysMethod: todaysMethod,
+    methodPool: methodPool,
     settings: function () { return settings; },
     resetStore: function () { try { localStorage.removeItem(STORE_KEY); } catch (e) {} },
     screens: screens

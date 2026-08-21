@@ -451,15 +451,6 @@ body {
 .stage-links .link-btn { margin-top: 12px; }
 
 /* ---------- 画面8b:回向の向き先 ---------- */
-.aim-text {
-  font-size: 23px;
-  line-height: 2;
-  font-weight: 500;
-  margin: 0;
-  white-space: pre-line;
-  animation: fadeIn 2.8s ease both;
-}
-
 /* ---------- 画面9:回向 ---------- */
 .dedication-lead {
   font-size: 14px;

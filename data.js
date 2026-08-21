@@ -72,8 +72,7 @@ const HINDRANCES = [
     inquiries: [
       { title: "苦", text: "そのだるさは、今日あなたから何を見えなくしていますか。" },
       { title: "集", text: "今日、どこで「面倒だ」に寄りかかりましたか。" },
-      { title: "滅", text: "その重さがないとき、体はどう動きますか。" },
-      { title: "道", text: "今すぐ動かせる体の部分は、どこですか。" }
+      { title: "滅", text: "その重さがないとき、体はどう動きますか。" }
     ],
     closing: "では、今のだるさに構わず、まず体を動かして、坐りましょう。",
     sitting: {
@@ -150,9 +149,9 @@ const HINDRANCES = [
 // 出典:Khuddakapāṭha 1(Khp 1)。パーリ語原文は著作権の対象外。
 // 読み上げでは pali ではなく yomi(カタカナ)を読ませる。
 const REFUGES = [
-  { ja: "仏に帰依いたします。", pali: "Buddhaṃ saraṇaṃ gacchāmi.", yomi: "ブッダン サラナン ガッチャーミ" },
-  { ja: "法に帰依いたします。", pali: "Dhammaṃ saraṇaṃ gacchāmi.", yomi: "ダンマン サラナン ガッチャーミ" },
-  { ja: "僧に帰依いたします。", pali: "Saṅghaṃ saraṇaṃ gacchāmi.", yomi: "サンガン サラナン ガッチャーミ" }
+  { ja: "ブッダに帰依いたします。", pali: "Buddhaṃ saraṇaṃ gacchāmi.", yomi: "ブッダン サラナン ガッチャーミ" },
+  { ja: "ダンマに帰依いたします。", pali: "Dhammaṃ saraṇaṃ gacchāmi.", yomi: "ダンマン サラナン ガッチャーミ" },
+  { ja: "サンガに帰依いたします。", pali: "Saṅghaṃ saraṇaṃ gacchāmi.", yomi: "サンガン サラナン ガッチャーミ" }
 ];
 
 // ---------- 坐る前に身体を整える手順 ----------
@@ -192,7 +191,6 @@ const DEDICATION =
   "この坐によって得た功徳を、\n一切有情に回向いたします。\n\n" +
   "この功徳を一切有情が\n享受できますように。";
 
-const DEDICATION_AIM = "今日、この功徳を\n誰に向けますか。";
 
 const DEDICATION_PALI = [
   { pali: "Mama puññabhāgaṃ sabbasattānaṃ bhājemi.", yomi: "ママ プンニャバーガン サッバサッターナン バージェーミ" },

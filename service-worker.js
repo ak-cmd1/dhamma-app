@@ -1,7 +1,7 @@
 // 方針:まずインターネットから最新を取りに行き、取れたらそれを表示しつつ控えを更新する。
 // 電波がないときだけ、控え(キャッシュ)から表示する。
 // これにより「アップロードしたのに古いままiPhoneに出る」が起きない。
-const CACHE_NAME = "keiten-v45";
+const CACHE_NAME = "keiten-v47";
 
 const ASSETS = [
   "./",
@@ -12,6 +12,7 @@ const ASSETS = [
   "./style.css",
   "./app.js",
   "./data.js",
+  "./kammatthana.js",
   "./passages.js",
   "./hosshin.js",
   "./elders.js",
