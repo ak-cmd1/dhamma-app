@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 
-<link rel="stylesheet" href="style.css?v=50">
+<link rel="stylesheet" href="style.css?v=51">
 </head>
 <body>
 
@@ -72,8 +72,11 @@
     </div>
 
     <div class="setting-row">
-      <p class="setting-label">声の速さ</p>
-      <div class="setting-choices" id="rate-choices"></div>
+      <p class="setting-label">声の速さ <span class="setting-value" id="rate-value"></span></p>
+      <input class="slider" type="range" id="rate-slider"
+             min="0.6" max="1.5" step="0.1" value="0.8"
+             aria-label="声の速さ">
+      <div class="slider-ends"><span>0.6倍</span><span>1.5倍</span></div>
     </div>
 
     <div class="setting-row">
@@ -211,12 +214,12 @@
 
 </main>
 
-<script src="audio-map.js?v=50"></script>
-<script src="data.js?v=50"></script>
-<script src="passages.js?v=50"></script>
-<script src="hosshin.js?v=50"></script>
-<script src="elders.js?v=50"></script>
-<script src="speech.js?v=50"></script>
-<script src="app.js?v=50"></script>
+<script src="audio-map.js?v=51"></script>
+<script src="data.js?v=51"></script>
+<script src="passages.js?v=51"></script>
+<script src="hosshin.js?v=51"></script>
+<script src="elders.js?v=51"></script>
+<script src="speech.js?v=51"></script>
+<script src="app.js?v=51"></script>
 </body>
 </html>

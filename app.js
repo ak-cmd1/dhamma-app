@@ -32,7 +32,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 50;
+  const BUILD = 51;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -1117,6 +1117,28 @@
       vc.appendChild(b);
     });
 
+    el("voice-note").textContent = Speech.isSupported()
+      ? "この端末の声:" + Speech.voiceName()
+      : "この端末では声が使えません。文字だけで進みます。";
+
+    // 声の速さはつまみで決める。0.6〜1.5倍を0.1刻みで。
+    // 音声は 0.92 の速さで作ってあるので、内部では この値 × 0.92 を持つ。
+    const rs = el("rate-slider");
+    const 倍率 = Math.round((settings.rate / 0.92) * 10) / 10;
+    rs.value = String(Math.min(1.5, Math.max(0.6, 倍率)));
+    el("rate-value").textContent = rs.value + "倍";
+    rs.oninput = function () {
+      el("rate-value").textContent = rs.value + "倍";
+      settings.rate = parseFloat(rs.value) * 0.92;
+      Speech.setRate(settings.rate);
+      el("tempo-note").textContent = "鐘が鳴るまで、およそ " + 見込み秒() + " 秒です。";
+    };
+    rs.onchange = function () {
+      saveSettings(settings);
+      Speech.cancel();
+      Speech.speak("この速さで読み上げます。");   // 動かした結果を、その場で聴ける
+    };
+
     const tc = el("tempo-choices");
     tc.innerHTML = "";
     [["ゆっくり", 1.0], ["ふつう", 0.5], ["速め", 0.25]].forEach(function (pair) {
@@ -1144,30 +1166,6 @@
         renderSettings();
       });
       bc.appendChild(b);
-    });
-
-    el("voice-note").textContent = Speech.isSupported()
-      ? "この端末の声:" + Speech.voiceName()
-      : "この端末では声が使えません。文字だけで進みます。";
-
-    const rc = el("rate-choices");
-    rc.innerHTML = "";
-    // 音声は 0.92 の速さで作ってあるので、再生速度は この値 ÷ 0.92 になる。
-    // 選択肢は、その「実際の速さ」をそのまま名前にしてある。
-    // 数字で言えるほうが、直したいときに指定しやすい。
-    [["0.7倍", 0.644], ["0.8倍", 0.736], ["0.9倍", 0.828],
-     ["1.0倍", 0.920], ["1.1倍", 1.012]].forEach(function (pair) {
-      const b = document.createElement("button");
-      b.className = "chip" + (Math.abs(settings.rate - pair[1]) < 0.01 ? " on" : "");
-      b.textContent = pair[0] === "speedy" ? "速め" : pair[0];
-      b.addEventListener("click", function () {
-        settings.rate = pair[1];
-        Speech.setRate(pair[1]);
-        saveSettings(settings);
-        renderSettings();
-        Speech.speak("この速さで読み上げます。");
-      });
-      rc.appendChild(b);
     });
   }
 
