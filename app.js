@@ -32,7 +32,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 54;
+  const BUILD = 55;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -567,7 +567,7 @@
 
     const t = ctx.currentTime;
     breathGain.gain.setValueAtTime(0.00001, t);
-    breathGain.gain.exponentialRampToValueAtTime(BOWL_LEVEL * BOWL_FLOOR, t + 1.4);
+    breathGain.gain.exponentialRampToValueAtTime(BOWL_LEVEL * BOWL_FLOOR, t + 0.8);
 
     drone = { breath: breathGain, modes: modes, noise: { src: noise, gain: ng },
               nodes: nodes, spin: spin };
@@ -664,6 +664,18 @@
     // 画面が消えると読み上げがそこで止まったまま戻らない端末があり、
     // 目を閉じている人は「急に何も言わなくなった」状態に置き去りになる。
     requestWakeLock();
+
+    // 呼吸で使う声を先に取りに行っておく。
+    // 一息目だけ声が遅れていたのは、その場で取りに行っていたため。
+    try {
+      const 先読み = ["吐いて"];
+      ["ひとつ", "ふたつ", "みっつ", "よっつ", "いつつ"].forEach(function (c) {
+        先読み.push(c + "。吸って");
+      });
+      REFUGES.forEach(function (r) { 先読み.push(r.ja); });
+      Speech.warm(先読み);
+    } catch (e) {}
+
     const my = runId;
     isWalking = false;
     skipPassage = false;
@@ -717,6 +729,10 @@
 
     startBreathTone();
     let turn = 0;   // 花が開くたび、同じ向きへ少しずつ回していく
+    // 音が立ち上がりきる前に一息目を始めると、声と音と動きがばらける。
+    // 立ち上がりを待ってから数え始める。
+    await wait(900);
+    if (my !== runId) throw "stopped";
 
     // 一息の片道ぶん。見た目・音・声を、同じ長さで揃える。
     // 花びらは放射状に固定しておき、動かすのは花全体の拡大と回転だけ。
@@ -752,15 +768,16 @@
         count.textContent = counters[i] || "";
 
         guide.textContent = "吸って";
-        phase(true, 吸);
-        // 目を閉じている人にも何息目か分かるよう、数も声に出す
+        // 声を先に出してから、見た目と音を動かす。
+        // 耳は遅れに敏感で、声が後になると「合っていない」と感じる。
         Speech.speak((counters[i] || "") + "。吸って");
+        phase(true, 吸);
         await wait(吸);
         if (my !== runId) throw "stopped";
 
         guide.textContent = "吐いて";
-        phase(false, 吐);
         Speech.speak("吐いて");
+        phase(false, 吐);
         await wait(吐);
       }
     } finally {

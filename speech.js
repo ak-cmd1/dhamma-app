@@ -218,6 +218,18 @@ const Speech = (function () {
     return n ? AUDIO_DIR + n + AUDIO_EXT : null;
   }
 
+  // 先に取りに行っておく。
+  // 一息目だけ声が遅れて聞こえていたのは、その場で取りに行っていたため。
+  // 二息目からは控えに入っているので合っていた。最初から合わせる。
+  function warm(list) {
+    if (!Array.isArray(list)) list = [list];
+    list.forEach(function (t) {
+      const url = audioFileFor(t);
+      if (!url) return;
+      try { fetch(url, { cache: "force-cache" }).catch(function () {}); } catch (e) {}
+    });
+  }
+
   // 鳴らせたら true、鳴らせなければ false を返す。
   // false のときは、呼んだ側が端末内蔵の声へ切り替える。
   function playFile(url) {
@@ -502,6 +514,7 @@ const Speech = (function () {
     refreshVoice: refreshVoice,
     diagnose: diagnose,
     hasAudioFor: function (t) { return !!audioFileFor(t); },
+    warm: warm,
     fallbackCount: function () { return fellBack; },
     audioFileFor: audioFileFor,
     testSpeak: testSpeak

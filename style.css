@@ -110,7 +110,8 @@ body {
 }
 
 .chip {
-  padding: 10px 16px;
+  min-height: 44px;          /* 指で押せる高さを確保する */
+  padding: 12px 18px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--card-bg);
@@ -264,6 +265,7 @@ body {
 
 .choice-btn {
   text-align: left;
+  min-height: 60px;
   padding: 18px 20px;
   border-radius: 14px;
   border: 1px solid var(--border);
@@ -317,17 +319,26 @@ body {
 
 .btn-primary:active { opacity: 0.85; }
 
+/* 文字だけのボタンは、余白を持たせないと指で押せない。
+   文字の高さ(14px)しか当たり判定が無く、外れることが多かった。
+   指で確実に押せる高さ(44px)を確保する。 */
 .link-btn {
-  margin-top: 20px;
+  margin-top: 8px;
+  min-height: 44px;
+  padding: 12px 18px;
   background: none;
   border: none;
   color: var(--ink-soft);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 15px;
   text-align: center;
   cursor: pointer;
   text-decoration: underline;
+  text-underline-offset: 4px;
+  -webkit-tap-highlight-color: transparent;
 }
+
+.link-btn:active { opacity: 0.55; }
 
 .link-btn.faint {
   color: var(--ink-faint);
