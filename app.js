@@ -24,7 +24,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 39;
+  const BUILD = 40;
 
   const OPEN_INHALE_MS = 4000;
   const OPEN_EXHALE_MS = 5000;
@@ -1222,22 +1222,40 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function () {
       navigator.serviceWorker.register("service-worker.js").then(function (reg) {
-        try { reg.update(); } catch (e) {}
-        // 戻ってくるたびに、新しい版が出ていないか確かめる
+        // 新しい版が用意できたら、最初の画面に案内を出す。
+        // 自動で読み直す作りにしていたが、読み直すたびにまた読み直しが起き、
+        // 画面に触れても何も反応しない状態になった。押して決めてもらう形に戻す。
+        function 案内(sw) {
+          if (!sw) return;
+          sw.addEventListener("statechange", function () {
+            if (sw.state === "installed" && navigator.serviceWorker.controller) {
+              el("update-btn").hidden = false;
+            }
+          });
+        }
+        if (reg.waiting && navigator.serviceWorker.controller) {
+          el("update-btn").hidden = false;
+        }
+        案内(reg.installing);
+        reg.addEventListener("updatefound", function () { 案内(reg.installing); });
+
+        el("update-btn").addEventListener("click", function () {
+          el("update-btn").textContent = "切り替えています…";
+          window.location.reload();
+        });
+
+        // 更新の確認は控えめに。開くたびに問い合わせると端末に負担がかかる。
+        let 前回 = 0;
+        function 確かめる() {
+          if (Date.now() - 前回 < 30 * 60 * 1000) return;
+          前回 = Date.now();
+          try { reg.update(); } catch (e) {}
+        }
+        確かめる();
         document.addEventListener("visibilitychange", function () {
-          if (document.visibilityState === "visible") { try { reg.update(); } catch (e) {} }
+          if (document.visibilityState === "visible") 確かめる();
         });
       }).catch(function () {});
-
-      // 新しい中身に入れ替わった合図。最初の画面にいるときだけ読み直す。
-      // 案内や坐禅の途中で読み直すと、そこで流れが切れてしまう。
-      let reloading = false;
-      navigator.serviceWorker.addEventListener("controllerchange", function () {
-        if (reloading) return;
-        if (!screens.start || screens.start.hidden) return;
-        reloading = true;
-        window.location.reload();
-      });
     });
   }
 

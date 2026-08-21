@@ -1,7 +1,7 @@
 // 方針:まずインターネットから最新を取りに行き、取れたらそれを表示しつつ控えを更新する。
 // 電波がないときだけ、控え(キャッシュ)から表示する。
 // これにより「アップロードしたのに古いままiPhoneに出る」が起きない。
-const CACHE_NAME = "keiten-v28";
+const CACHE_NAME = "keiten-v29";
 
 const ASSETS = [
   "./",
@@ -20,7 +20,8 @@ const ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
-  self.skipWaiting();
+  // すぐには入れ替わらない。利用者が「切り替える」を押したときに入れ替わる。
+  // 勝手に入れ替わると、読み直しが繰り返されて操作を受け付けなくなった。
 });
 
 self.addEventListener("activate", (event) => {
