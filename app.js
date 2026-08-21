@@ -32,7 +32,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 45;
+  const BUILD = 48;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -400,76 +400,222 @@
     for (let i = 0; i < n; i += 1) playBell(i * 2.8);
   }
 
-  // ---------- 呼吸に添える音 ----------
-  // 目を閉じたままでも「いま息のどのあたりか」が分かるように、
-  // 息に沿って高さがゆっくり変わる音を鳴らす。吸うと上がり、吐くと下がる。
-  // 折り返しだけを知らせる鈴と違い、息の途中もずっと分かるのが利点。
-  const BREATH_LOW = 174.6;    // 吐ききったところ
-  const BREATH_HIGH = 261.6;   // 吸いきったところ(五度上)
-  let breathTone = null;
+  // ---------- 呼吸に添える音(シンギングボウル) ----------
+  // 金属の椀の縁を棒で擦ったときの鳴り方を、その場で組み立てている。
+  //
+  // 大事なのは三つ。
+  //  ① 撞いたときと違い、擦った椀は基音より第2倍音のほうが大きく鳴る。
+  //  ② 椀は形がわずかに歪んでいるので、ひとつの倍音が「ごく近い二本」に割れる。
+  //     この二本は椀の縁の別々の場所で鳴っているため、うなりは
+  //     「音量の増減」ではなく「椀の周りを音が回る動き」として聞こえる。
+  //     だから二本を左右いっぱいに離す。ここが空間の広がりの正体。
+  //  ③ 低い倍音から先に育ち、高い倍音は遅れて出てくる。擦り続けて響きが育つ動き。
+  const BOWL_ROOT = 198.0;
+  //         [倍音の比, 強さ, うなりの速さ(Hz)]
+  const BOWL_MODES = [
+    [1.00, 0.55, 0.6],
+    [2.00, 1.00, 1.1],    // ここがいちばん大きい
+    [3.01, 0.62, 1.9],
+    [4.05, 0.34, 2.7],
+    [5.43, 0.20, 3.6],
+    [7.12, 0.10, 4.6],
+    [9.15, 0.05, 5.8]
+  ];
+  const BOWL_LEVEL = 0.15;     // 吸いきったときの音量
+  const BOWL_FLOOR = 0.055;    // 吐ききったときの音量(比)
+  let drone = null;
+
+  // 響きは、返るたびに高い成分を削る。実際の部屋は高い音から先に吸われる。
+  // これをしないと金属的に響き、耳に刺さる。
+  let droneVerbIn = null;
+  let droneVerbOut = null;
+  function getDroneReverb(ctx) {
+    if (droneVerbIn) return droneVerbIn;
+    const sec = 2.2;                    // 一息より短く保つ
+    const len = Math.floor(ctx.sampleRate * sec);
+    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch += 1) {
+      const d = buf.getChannelData(ch);
+      let st = 0;
+      for (let i = 0; i < len; i += 1) {
+        const p = i / len;
+        const a = 0.35 + 0.60 * p;      // 進むほど強く丸める(高域が先に減る)
+        st = (1 - a) * (Math.random() * 2 - 1) + a * st;
+        d[i] = st * Math.pow(1 - p, 1.7);
+      }
+    }
+    const conv = ctx.createConvolver();
+    conv.buffer = buf;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.46;
+    conv.connect(wet);
+    droneVerbOut = wet;
+    droneVerbIn = conv;
+    return conv;
+  }
 
   function startBreathTone() {
     const ctx = getAudioCtx();
-    if (!ctx || breathTone) return;
+    if (!ctx || drone) return;
 
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = BREATH_LOW;
+    const mix = ctx.createGain();
+    mix.gain.value = 1.0;
 
-    // 高い倍音を落として、耳に刺さらない柔らかい音にする
-    const filt = ctx.createBiquadFilter();
-    filt.type = "lowpass";
-    filt.frequency.value = 1100;
+    // 息の音量は、いちばん最後でまとめて上下させる。
+    // 途中でやると、響きの尾がすき間を埋めて「ずっと一定」に聞こえる。
+    const breathGain = ctx.createGain();
+    breathGain.gain.value = 0.00001;
+    breathGain.connect(ctx.destination);
 
-    const gain = ctx.createGain();
-    gain.gain.value = 0.0001;
+    const soft = ctx.createBiquadFilter();
+    soft.type = "lowpass";
+    soft.frequency.value = 5200;
+    mix.connect(soft);
 
-    osc.connect(filt);
-    filt.connect(gain);
-    gain.connect(ctx.destination);
+    // 棒が縁を巡っていく動き。ごくゆっくり左右へ回す。
+    let head = soft;
+    const spin = [];
+    if (ctx.createStereoPanner) {
+      const rot = ctx.createStereoPanner();
+      rot.pan.value = 0;
+      const lfo = ctx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = 0.13;
+      const depth = ctx.createGain();
+      depth.gain.value = 0.55;
+      lfo.connect(depth);
+      depth.connect(rot.pan);
+      lfo.start();
+      spin.push(lfo);
+      soft.connect(rot);
+      head = rot;
+    }
 
-    // 鐘と同じ堂の中で鳴っているように、控えめに響かせる
+    const dry = ctx.createGain();
+    dry.gain.value = 0.60;
+    head.connect(dry);
+    dry.connect(breathGain);
+
+    // 左右にごく短い遅れ。頭の外へ広がる。
+    [0.013, 0.018].forEach(function (sec, i) {
+      const dl = ctx.createDelay(0.2);
+      dl.delayTime.value = sec;
+      const g = ctx.createGain();
+      g.gain.value = 0.22;
+      let out = g;
+      if (ctx.createStereoPanner) {
+        const pan = ctx.createStereoPanner();
+        pan.pan.value = i === 0 ? -1 : 1;
+        g.connect(pan);
+        out = pan;
+      }
+      head.connect(dl);
+      dl.connect(g);
+      out.connect(breathGain);
+    });
+
     try {
-      const send = ctx.createGain();
-      send.gain.value = 0.35;
-      gain.connect(send);
-      send.connect(getReverb(ctx));
-    } catch (e) {}
+      head.connect(getDroneReverb(ctx));
+      if (droneVerbOut) {
+        try { droneVerbOut.disconnect(); } catch (e) {}
+        droneVerbOut.connect(breathGain);
+      }
+    } catch (e) { /* 響きなしでも鳴る */ }
 
-    osc.start();
-    breathTone = { osc: osc, gain: gain };
+    // ---- 椀の振動 ----
+    const nodes = [];
+    const modes = BOWL_MODES.map(function (m, k) {
+      const 比 = m[0], 強 = m[1], うなり = m[2];
+      const g = ctx.createGain();
+      g.gain.value = 0.00001;
+      g.connect(mix);
+      [-0.5, 0.5].forEach(function (side) {
+        const osc = ctx.createOscillator();
+        osc.type = "sine";
+        osc.frequency.value = BOWL_ROOT * 比 + side * うなり;
+        let out = osc;
+        if (ctx.createStereoPanner) {
+          const pan = ctx.createStereoPanner();
+          pan.pan.value = side * 1.84 > 0 ? 0.92 : -0.92;   // 左右いっぱいへ
+          osc.connect(pan);
+          out = pan;
+        }
+        out.connect(g);
+        osc.start();
+        nodes.push(osc);
+      });
+      // 高い倍音ほど、遅れて出てくる
+      return { gain: g, peak: 強, delay: k * 0.055 };
+    });
+
+    // 棒が縁をこする音。ごく小さく。
+    const nlen = Math.floor(ctx.sampleRate * 2);
+    const nbuf = ctx.createBuffer(1, nlen, ctx.sampleRate);
+    const nd = nbuf.getChannelData(0);
+    for (let i = 0; i < nlen; i += 1) nd[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = nbuf;
+    noise.loop = true;
+    const bp = ctx.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 2400;
+    bp.Q.value = 0.7;
+    const ng = ctx.createGain();
+    ng.gain.value = 0.00001;
+    noise.connect(bp); bp.connect(ng); ng.connect(mix);
+    noise.start();
+
+    const t = ctx.currentTime;
+    breathGain.gain.setValueAtTime(0.00001, t);
+    breathGain.gain.exponentialRampToValueAtTime(BOWL_LEVEL * BOWL_FLOOR, t + 1.4);
+
+    drone = { breath: breathGain, modes: modes, noise: { src: noise, gain: ng },
+              nodes: nodes, spin: spin };
   }
 
-  // 一息ぶん、音の高さと大きさを動かす。吐くほうは少し小さくする。
+  // 一息ぶん。音程は動かさない。動かすと耳が音楽として追いかけ、頭が働く。
   function breathTonePhase(inhale, ms) {
-    if (!breathTone || !audioCtx) return;
+    if (!drone || !audioCtx) return;
     const t = audioCtx.currentTime;
-    const dur = Math.max(0.2, (ms || 4000) / 1000);
-    const f = breathTone.osc.frequency;
-    const g = breathTone.gain.gain;
+    const dur = Math.max(0.3, (ms || 4000) / 1000);
     try {
-      f.cancelScheduledValues(t);
-      f.setValueAtTime(Math.max(1, f.value), t);
-      f.exponentialRampToValueAtTime(inhale ? BREATH_HIGH : BREATH_LOW, t + dur * 0.95);
-
+      // 耳は音量を対数で聞くので、指数で上下させると「まっすぐ増減している」と感じる。
+      const g = drone.breath.gain;
       g.cancelScheduledValues(t);
-      g.setValueAtTime(Math.max(0.0001, g.value), t);
-      g.linearRampToValueAtTime(inhale ? 0.075 : 0.055, t + dur * 0.30);
-      g.linearRampToValueAtTime(inhale ? 0.070 : 0.018, t + dur * 0.92);
+      g.setValueAtTime(Math.max(0.00001, g.value), t);
+      g.exponentialRampToValueAtTime(
+        inhale ? BOWL_LEVEL : BOWL_LEVEL * BOWL_FLOOR, t + dur * 0.95);
+
+      drone.modes.forEach(function (m) {
+        const mg = m.gain.gain;
+        const 遅れ = inhale ? Math.min(dur * 0.5, dur * m.delay) : 0;
+        mg.cancelScheduledValues(t);
+        mg.setValueAtTime(Math.max(0.00001, mg.value), t + 遅れ);
+        mg.exponentialRampToValueAtTime(
+          inhale ? m.peak : m.peak * 0.02, t + dur * 0.95);
+      });
+
+      const ng = drone.noise.gain.gain;
+      ng.cancelScheduledValues(t);
+      ng.setValueAtTime(Math.max(0.00001, ng.value), t);
+      ng.exponentialRampToValueAtTime(inhale ? 0.012 : 0.0002, t + dur * 0.95);
     } catch (e) {}
   }
 
   function stopBreathTone() {
-    if (!breathTone) return;
-    const tone = breathTone;
-    breathTone = null;
+    if (!drone) return;
+    const d = drone;
+    drone = null;
     if (!audioCtx) return;
     const t = audioCtx.currentTime;
     try {
-      tone.gain.gain.cancelScheduledValues(t);
-      tone.gain.gain.setValueAtTime(Math.max(0.0001, tone.gain.gain.value), t);
-      tone.gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
-      tone.osc.stop(t + 1.1);
+      d.breath.gain.cancelScheduledValues(t);
+      d.breath.gain.setValueAtTime(Math.max(0.00001, d.breath.gain.value), t);
+      // 尾を引かせて消す。ぷつりと切ると空間が壊れる。
+      d.breath.gain.exponentialRampToValueAtTime(0.00001, t + 2.4);
+      d.nodes.forEach(function (o) { try { o.stop(t + 2.6); } catch (e) {} });
+      d.spin.forEach(function (o) { try { o.stop(t + 2.6); } catch (e) {} });
+      try { d.noise.src.stop(t + 2.6); } catch (e) {}
     } catch (e) {}
   }
 
@@ -1362,6 +1508,17 @@
     poolFor: poolFor,
     pickFromPool: pickFromPool,
     strikeBell: strikeBell,
+    startBreathTone: startBreathTone,
+    breathTonePhase: breathTonePhase,
+    stopBreathTone: stopBreathTone,
+    droneInfo: function () {
+      return drone ? {
+        倍音: drone.modes.length,
+        発振器: drone.nodes.length,
+        回転: drone.spin.length,
+        いまの音量: drone.breath.gain.value
+      } : null;
+    },
     pendingSitMinutes: pendingSitMinutes,
     sittingShort: sittingShort,
     settings: function () { return settings; },
