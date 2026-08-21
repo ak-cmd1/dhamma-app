@@ -1,7 +1,7 @@
 // 方針:まずインターネットから最新を取りに行き、取れたらそれを表示しつつ控えを更新する。
 // 電波がないときだけ、控え(キャッシュ)から表示する。
 // これにより「アップロードしたのに古いままiPhoneに出る」が起きない。
-const CACHE_NAME = "keiten-v26";
+const CACHE_NAME = "keiten-v28";
 
 const ASSETS = [
   "./",
@@ -28,14 +28,38 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+        Promise.all(
+          keys
+            .filter((k) => k !== CACHE_NAME && k !== AUDIO_CACHE)
+            .map((k) => caches.delete(k))
+        )
       )
   );
   self.clients.claim();
 });
 
+const AUDIO_CACHE = "keiten-audio-v1";
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  // 読み上げの音声は中身が変わらないので、控えがあればそれを使う。
+  // 毎回取りに行くと、電波が無いときに読み上げが止まってしまう。
+  if (event.request.url.indexOf("/audio/") !== -1) {
+    event.respondWith(
+      caches.match(event.request).then((hit) => {
+        if (hit) return hit;
+        return fetch(event.request).then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(AUDIO_CACHE).then((c) => c.put(event.request, copy));
+          }
+          return res;
+        });
+      })
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(event.request)

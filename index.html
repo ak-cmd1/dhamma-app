@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 
-<link rel="stylesheet" href="style.css?v=37">
+<link rel="stylesheet" href="style.css?v=39">
 </head>
 <body>
 
@@ -71,6 +71,15 @@
       <div class="setting-choices" id="rate-choices"></div>
     </div>
 
+    <div class="setting-row">
+      <p class="setting-label">音声をこの端末に入れる</p>
+      <div class="setting-choices">
+        <button class="chip" id="fetch-audio-btn">まとめて入れる</button>
+      </div>
+      <p class="setting-note" id="fetch-audio-note"></p>
+      <div class="fetch-bar" id="fetch-bar" hidden><span id="fetch-fill"></span></div>
+    </div>
+
     <!-- 音が出ないときのための確認。端末が何を返しているかをそのまま出す。 -->
     <div class="setting-row">
       <p class="setting-label">音の確認</p>
@@ -86,6 +95,8 @@
     <div class="actions">
       <button class="btn-primary" id="settings-done-btn">戻る</button>
     </div>
+
+    <p class="credit">読み上げの声:VOICEVOX 青山龍星</p>
   </section>
 
   <!-- 画面1:三帰依 -->
@@ -178,9 +189,10 @@
 
 </main>
 
-<script src="data.js?v=37"></script>
-<script src="passages.js?v=37"></script>
-<script src="speech.js?v=37"></script>
-<script src="app.js?v=37"></script>
+<script src="audio-map.js?v=39"></script>
+<script src="data.js?v=39"></script>
+<script src="passages.js?v=39"></script>
+<script src="speech.js?v=39"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>

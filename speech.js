@@ -192,6 +192,63 @@ const Speech = (function () {
     window.speechSynthesis.onvoiceschanged = refreshVoice;
   }
 
+  // ---- 先に作っておいた音声 ----
+  // 読み上げる文章は全部あらかじめ決まっているので、
+  // 自然な声(VOICEVOX 青山龍星)で作った音声を用意してある。
+  // 音声があればそれを鳴らし、無ければ端末内蔵の声で読む。
+  //
+  // iPhone は、利用者が画面に触れた流れの中でしか音を出せない。
+  // そこで再生機は一つだけ作って使い回し、「始める」に触れた瞬間に
+  // 無音を鳴らして許可を取っておく。以後は差し替えるだけで鳴る。
+  const SILENT = "data:audio/mp4;base64,AAAAHGZ0eXBNNEEgAAACAE00QSBpc29taXNvMgAAAAhmcmVlAAAAI21kYXTcAExhdmM2My4xLjEwMQACMEAOARggBwEYIAcAAAMGbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAABdwAAABLAAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAjF0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAABLAAAAAAAAAAAAAAAAEBAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAASwAAAEAAABAAAAAAGpbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABdwAAACLBVxAAAAAAALWhkbHIAAAAAAAAAAHNvdW4AAAAAAAAAAAAAAABTb3VuZEhhbmRsZXIAAAABVG1pbmYAAAAQc21oZAAAAAAAAAAAAAAAJGRpbmYAAAAcZHJlZgAAAAAAAAABAAAADHVybCAAAAABAAABGHN0YmwAAABqc3RzZAAAAAAAAAABAAAAWm1wNGEAAAAAAAAAAQAAAAAAAAAAAAEAEAAAAABdwAAAAAAANmVzZHMAAAAAA4CAgCUAAQAEgICAF0AVAAAAAAA+gAAACRoFgICABRMIVuUABoCAgAECAAAAIHN0dHMAAAAAAAAAAgAAAAIAAAQAAAAAAQAAALAAAAAcc3RzYwAAAAAAAAABAAAAAQAAAAMAAAABAAAAIHN0c3oAAAAAAAAAAAAAAAMAAAATAAAABAAAAAQAAAAUc3RjbwAAAAAAAAABAAAALAAAABpzZ3BkAQAAAHJvbGwAAAACAAAAAf//AAAAHHNiZ3AAAAAAcm9sbAAAAAEAAAADAAAAAQAAAGF1ZHRhAAAAWW1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAALGlsc3QAAAAkqXRvbwAAABxkYXRhAAAAAQAAAABMYXZmNjMuMS4xMDE=";
+  const AUDIO_DIR = "audio/";
+  const AUDIO_EXT = ".m4a";
+  const BUILT_RATE = 0.92;        // 音声を作ったときの速さ
+  let player = null;
+
+  function audioFileFor(text) {
+    if (typeof AUDIO_MAP === "undefined" || !AUDIO_MAP) return null;
+    const n = AUDIO_MAP[text];
+    return n ? AUDIO_DIR + n + AUDIO_EXT : null;
+  }
+
+  // 鳴らせたら true、鳴らせなければ false を返す。
+  // false のときは、呼んだ側が端末内蔵の声へ切り替える。
+  function playFile(url) {
+    return new Promise(function (resolve) {
+      if (!player) { resolve(false); return; }
+      let settled = false;
+      function finish(ok) {
+        if (settled) return;
+        settled = true;
+        player.removeEventListener("ended", onEnd);
+        player.removeEventListener("error", onErr);
+        clearTimeout(guard);
+        resolve(ok);
+      }
+      function onEnd() { finish(true); }
+      function onErr() { finish(false); }
+      player.addEventListener("ended", onEnd);
+      player.addEventListener("error", onErr);
+
+      // 何かの拍子に終わりの合図が来ないときのための保険
+      const guard = setTimeout(function () { finish(true); }, 90000);
+
+      try {
+        player.src = url;
+        // 設定した速さを反映する。音声は 0.92 倍で作ってあるので、その比で調整する。
+        player.playbackRate = Math.max(0.5, Math.min(2, rate / BUILT_RATE));
+        const p = player.play();
+        if (p && p.catch) p.catch(onErr);
+      } catch (e) { onErr(); }
+    });
+  }
+
+  function stopFile() {
+    if (!player) return;
+    try { player.pause(); player.removeAttribute("src"); player.load(); } catch (e) {}
+  }
+
   // ---- 読み上げ ----
   // 読み終わったら解決する Promise を返す。
   // 使えないときは、文字数から見積もった時間で解決する。
@@ -224,6 +281,22 @@ const Speech = (function () {
   }
 
   function speak(text) {
+    const raw = String(text || "").trim();
+    if (!raw) return Promise.resolve();
+
+    // 先に作ってある音声があれば、そちらを鳴らす
+    const file = audioFileFor(raw);
+    if (file && enabled) {
+      const my = gen;
+      return playFile(file).then(function (ok) {
+        if (ok || my !== gen) return;
+        return speakByDevice(raw);   // 鳴らせなかったときだけ内蔵の声へ
+      });
+    }
+    return speakByDevice(raw);
+  }
+
+  function speakByDevice(text) {
     const raw = String(text || "").trim();
     if (!raw) return Promise.resolve();
 
@@ -287,6 +360,7 @@ const Speech = (function () {
 
   function cancel() {
     gen += 1;   // 区切って読んでいる途中なら、続きを打ち切る
+    stopFile();
     if (supported) {
       try { window.speechSynthesis.cancel(); } catch (e) {}
     }
@@ -355,6 +429,16 @@ const Speech = (function () {
   // iPhone は、利用者が一度画面に触れるまで音を出せない。
   // 「始める」に触れた瞬間に、無音に近い一言を読ませて許可を得ておく。
   function unlock() {
+    // 音声ファイル用の再生機に、先に許可を取っておく
+    if (!player) {
+      try {
+        player = new Audio();
+        player.preload = "auto";
+        player.src = SILENT;
+        const p = player.play();
+        if (p && p.catch) p.catch(function () {});
+      } catch (e) { player = null; }
+    }
     if (!supported) return;
     refreshVoice();
     try {
@@ -380,6 +464,8 @@ const Speech = (function () {
     voiceName: function () { return voice ? voice.name : "(なし)"; },
     refreshVoice: refreshVoice,
     diagnose: diagnose,
+    hasAudioFor: function (t) { return !!audioFileFor(t); },
+    audioFileFor: audioFileFor,
     testSpeak: testSpeak
   };
 })();

@@ -549,3 +549,28 @@ body {
   color: var(--ink-faint);
   opacity: 0.55;
 }
+
+/* 音声の取り込みの進み具合 */
+.fetch-bar {
+  margin-top: 10px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.fetch-bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.25s ease;
+}
+
+/* 声の提供元。利用条件として表示が必要 */
+.credit {
+  margin: 26px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}

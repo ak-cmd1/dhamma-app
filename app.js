@@ -24,7 +24,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 37;
+  const BUILD = 39;
 
   const OPEN_INHALE_MS = 4000;
   const OPEN_EXHALE_MS = 5000;
@@ -961,6 +961,77 @@
     showScreen("done");
   });
 
+  // ---------- 音声をまとめて端末に入れる ----------
+  // 読み上げの音声は全部あらかじめ作ってある。先に取り込んでおけば、
+  // 以後は電波が無くても動く。飛行機の中でも山の中でも坐れる。
+  const AUDIO_CACHE = "keiten-audio-v1";
+
+  function audioUrls() {
+    if (typeof AUDIO_MAP === "undefined" || !AUDIO_MAP) return [];
+    const seen = {};
+    const out = [];
+    for (const k in AUDIO_MAP) {
+      const n = AUDIO_MAP[k];
+      if (!seen[n]) { seen[n] = 1; out.push("audio/" + n + ".m4a"); }
+    }
+    return out;
+  }
+
+  async function audioOnDevice() {
+    if (!window.caches) return 0;
+    try {
+      const cache = await caches.open(AUDIO_CACHE);
+      return (await cache.keys()).length;
+    } catch (e) { return 0; }
+  }
+
+  async function fetchAllAudio(onProgress) {
+    const urls = audioUrls();
+    if (!urls.length || !window.caches) return { 入れた: 0, 全部: urls.length };
+    const cache = await caches.open(AUDIO_CACHE);
+    let done = 0;
+    const BATCH = 12;   // 一度に取りすぎると端末が詰まる
+    for (let i = 0; i < urls.length; i += BATCH) {
+      await Promise.all(urls.slice(i, i + BATCH).map(async function (u) {
+        try {
+          if (!(await cache.match(u))) {
+            const r = await fetch(u, { cache: "no-store" });
+            if (r.ok) await cache.put(u, r.clone());
+          }
+        } catch (e) {}
+        done += 1;
+      }));
+      if (onProgress) onProgress(done, urls.length);
+    }
+    return { 入れた: done, 全部: urls.length };
+  }
+
+  async function showAudioState() {
+    const note = el("fetch-audio-note");
+    const 全部 = audioUrls().length;
+    if (!全部) { note.textContent = "この版には音声が入っていません。"; return; }
+    const ある = await audioOnDevice();
+    note.textContent = ある >= 全部
+      ? "入っています(" + 全部 + "本)。電波が無くても動きます。"
+      : "まだ " + ある + " / " + 全部 + " 本です。押すと全部入ります(約"
+        + (typeof AUDIO_MB !== "undefined" ? AUDIO_MB : 70) + "MB)。";
+  }
+
+  el("fetch-audio-btn").addEventListener("click", async function () {
+    const btn = el("fetch-audio-btn");
+    const bar = el("fetch-bar");
+    const fill = el("fetch-fill");
+    btn.disabled = true;
+    bar.hidden = false;
+    el("fetch-audio-note").textContent = "取り込んでいます…";
+    const r = await fetchAllAudio(function (done, total) {
+      fill.style.width = Math.round(done / total * 100) + "%";
+      el("fetch-audio-note").textContent = "取り込んでいます… " + done + " / " + total + " 本";
+    });
+    btn.disabled = false;
+    el("fetch-audio-note").textContent = "入りました(" + r.全部 + "本)。これで電波が無くても動きます。";
+  });
+
   // ---------- 音の確認 ----------
   // 音が出ないという相談を、こちらでは再現できない。
   // 端末が何を返しているかをそのまま画面に出し、
@@ -1059,6 +1130,7 @@
     Speech.refreshVoice();
     renderSettings();
     showDeviceInfo();
+    showAudioState();
     showScreen("settings");
   });
 
