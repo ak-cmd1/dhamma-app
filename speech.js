@@ -213,7 +213,8 @@ const Speech = (function () {
 
   function audioFileFor(text) {
     if (typeof AUDIO_MAP === "undefined" || !AUDIO_MAP) return null;
-    const n = AUDIO_MAP[text];
+    // 前後の空白は取り除いてから引く。speak() 側も同じように取り除いている。
+    const n = AUDIO_MAP[String(text || "").trim()];
     return n ? AUDIO_DIR + n + AUDIO_EXT : null;
   }
 

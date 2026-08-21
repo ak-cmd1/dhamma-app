@@ -32,7 +32,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 51;
+  const BUILD = 54;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -813,7 +813,14 @@
   // 沈黙に入る瞬間を決めるため。説明ではないので、短く、行を空けて読む。
   function todaysHosshin() {
     if (typeof HOSSHIN === "undefined" || !HOSSHIN.length) return null;
-    return HOSSHIN[pickFromPool("hosshin", HOSSHIN.length)];
+    const h = HOSSHIN[pickFromPool("hosshin", HOSSHIN.length)];
+    // 同じ日に、今日の一節と同じ偈が発心でも出ると、二度同じものを聞くことになる。
+    // 重なったときは、次の一本へずらす。
+    if (passage && h && h.sutra === passage.sutra) {
+      const i = HOSSHIN.indexOf(h);
+      return HOSSHIN[(i + 1) % HOSSHIN.length];
+    }
+    return h;
   }
 
   async function runHosshin(my) {
