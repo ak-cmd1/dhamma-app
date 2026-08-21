@@ -24,7 +24,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 40;
+  const BUILD = 41;
 
   const OPEN_INHALE_MS = 4000;
   const OPEN_EXHALE_MS = 5000;
@@ -1049,7 +1049,8 @@
       " / 使う声:" + d.使う声 +
       " / 止められている:" + d.止められている +
       " / 立ち上げ方:" + 立ち上げ方 +
-      " / 音の状態:" + 音の状態;
+      " / 音の状態:" + 音の状態 +
+      " / 内蔵の声に落ちた回数:" + (Speech.fallbackCount ? Speech.fallbackCount() : "-");
   }
 
   el("test-voice-btn").addEventListener("click", async function () {

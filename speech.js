@@ -205,6 +205,11 @@ const Speech = (function () {
   const AUDIO_EXT = ".m4a";
   const BUILT_RATE = 0.92;        // 音声を作ったときの速さ
   let player = null;
+  // 「始める」で無音を鳴らして許可を取るが、それが済む前に本番を鳴らそうとすると
+  // iPhone に弾かれる。最初の読み上げ(三帰依)だけ内蔵の声に落ちていたのはこれが原因。
+  let unlockDone = null;
+  // 音声を鳴らせず内蔵の声に落ちた回数。設定画面に出して、原因を追えるようにする。
+  let fellBack = 0;
 
   function audioFileFor(text) {
     if (typeof AUDIO_MAP === "undefined" || !AUDIO_MAP) return null;
@@ -215,6 +220,12 @@ const Speech = (function () {
   // 鳴らせたら true、鳴らせなければ false を返す。
   // false のときは、呼んだ側が端末内蔵の声へ切り替える。
   function playFile(url) {
+    if (!player) return Promise.resolve(false);
+    const gate = unlockDone || Promise.resolve();
+    return gate.then(function () { return playFileNow(url); });
+  }
+
+  function playFileNow(url) {
     return new Promise(function (resolve) {
       if (!player) { resolve(false); return; }
       let settled = false;
@@ -234,13 +245,24 @@ const Speech = (function () {
       // 何かの拍子に終わりの合図が来ないときのための保険
       const guard = setTimeout(function () { finish(true); }, 90000);
 
-      try {
-        player.src = url;
-        // 設定した速さを反映する。音声は 0.92 倍で作ってあるので、その比で調整する。
-        player.playbackRate = Math.max(0.5, Math.min(2, rate / BUILT_RATE));
-        const p = player.play();
-        if (p && p.catch) p.catch(onErr);
-      } catch (e) { onErr(); }
+      // 設定した速さを反映する。音声は 0.92 倍で作ってあるので、その比で調整する。
+      const speed = Math.max(0.5, Math.min(2, rate / BUILT_RATE));
+      let retried = false;
+
+      function 鳴らす() {
+        try {
+          player.src = url;
+          player.playbackRate = speed;
+          const p = player.play();
+          if (p && p.catch) p.catch(function () {
+            // 許可が間に合わなかっただけのことがある。一度だけ置き直して試す。
+            if (retried) { onErr(); return; }
+            retried = true;
+            setTimeout(鳴らす, 150);
+          });
+        } catch (e) { onErr(); }
+      }
+      鳴らす();
     });
   }
 
@@ -290,7 +312,8 @@ const Speech = (function () {
       const my = gen;
       return playFile(file).then(function (ok) {
         if (ok || my !== gen) return;
-        return speakByDevice(raw);   // 鳴らせなかったときだけ内蔵の声へ
+        fellBack += 1;               // 鳴らせなかった回数を控えておく
+        return speakByDevice(raw);
       });
     }
     return speakByDevice(raw);
@@ -434,10 +457,17 @@ const Speech = (function () {
       try {
         player = new Audio();
         player.preload = "auto";
-        player.src = SILENT;
-        const p = player.play();
-        if (p && p.catch) p.catch(function () {});
-      } catch (e) { player = null; }
+        unlockDone = new Promise(function (resolve) {
+          let settled = false;
+          function 済み() { if (!settled) { settled = true; resolve(); } }
+          player.addEventListener("ended", 済み, { once: true });
+          player.addEventListener("error", 済み, { once: true });
+          setTimeout(済み, 500);          // 合図が来なくても先へ進む
+          player.src = SILENT;
+          const p = player.play();
+          if (p && p.catch) p.catch(済み);
+        });
+      } catch (e) { player = null; unlockDone = null; }
     }
     if (!supported) return;
     refreshVoice();
@@ -465,6 +495,7 @@ const Speech = (function () {
     refreshVoice: refreshVoice,
     diagnose: diagnose,
     hasAudioFor: function (t) { return !!audioFileFor(t); },
+    fallbackCount: function () { return fellBack; },
     audioFileFor: audioFileFor,
     testSpeak: testSpeak
   };
