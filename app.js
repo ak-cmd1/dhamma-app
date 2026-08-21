@@ -10,6 +10,14 @@
   // ---- 間(ま)の長さ。読み上げが終わったあと、次へ進むまで ----
   // 坐るまでを短くする。観る時間は坐禅そのものが持っているので、
   // 坐る前に長い間を置かない。間を長く取るのは坐ったあとだけ。
+  // 間(ま)は、設定した「テンポ」で縮める。
+  // 読み上げそのものの速さは声の設定側で変わるので、ここは黙っている時間だけを扱う。
+  // 坐ったあとの問いは急がせたくないので、縮めすぎないよう下限を置く。
+  function ma(ms, 下限) {
+    const t = settings.tempo === undefined ? 0.5 : settings.tempo;
+    return Math.max(下限 || 0, Math.round(ms * t));
+  }
+
   const PAUSE = {
     refuge: 700,      // 三帰依:一行ごと
     afterRefuge: 800,
@@ -24,11 +32,12 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 41;
+  const BUILD = 42;
 
-  const OPEN_INHALE_MS = 4000;
-  const OPEN_EXHALE_MS = 5000;
-  const OPEN_BREATHS = 3;
+  // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
+  // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
+  const OPEN_INHALE_BASE = 4000;
+  const OPEN_EXHALE_BASE = 5000;
 
   const screens = {
     start: document.getElementById("screen-start"),
@@ -93,10 +102,12 @@
       return {
         minutes: s.minutes || DEFAULT_MINUTES,
         voice: s.voice === undefined ? true : !!s.voice,
-        rate: s.rate || 0.92
+        rate: s.rate || 1.05,
+        tempo: s.tempo || 0.5,          // 間(ま)の長さの倍率
+        breaths: s.breaths || 3
       };
     } catch (e) {
-      return { minutes: DEFAULT_MINUTES, voice: true, rate: 0.92 };
+      return { minutes: DEFAULT_MINUTES, voice: true, rate: 1.05, tempo: 0.5, breaths: 3 };
     }
   }
 
@@ -542,9 +553,9 @@
         '<p class="refuge-pali">' + r.pali + "</p>" +
         '<p class="refuge-yomi">' + r.yomi + "</p>";
       list.appendChild(row);
-      await say(r.ja, PAUSE.refuge, my);
+      await say(r.ja, ma(PAUSE.refuge), my);
     }
-    await wait(PAUSE.afterRefuge);
+    await wait(ma(PAUSE.afterRefuge));
   }
 
   // ---- 呼吸 ----
@@ -585,21 +596,24 @@
     }
 
     try {
-      for (let i = 0; i < OPEN_BREATHS; i += 1) {
+      const breaths = settings.breaths || 3;
+      const 吸 = Math.max(3000, Math.round(OPEN_INHALE_BASE * (0.7 + 0.3 * (settings.tempo || 0.5) * 2)));
+      const 吐 = Math.max(3800, Math.round(OPEN_EXHALE_BASE * (0.7 + 0.3 * (settings.tempo || 0.5) * 2)));
+      for (let i = 0; i < breaths; i += 1) {
         if (my !== runId) throw "stopped";
         count.textContent = counters[i] || "";
 
         guide.textContent = "吸って";
-        phase(true, OPEN_INHALE_MS);
+        phase(true, 吸);
         // 目を閉じている人にも何息目か分かるよう、数も声に出す
         Speech.speak((counters[i] || "") + "。吸って");
-        await wait(OPEN_INHALE_MS);
+        await wait(吸);
         if (my !== runId) throw "stopped";
 
         guide.textContent = "吐いて";
-        phase(false, OPEN_EXHALE_MS);
+        phase(false, 吐);
         Speech.speak("吐いて");
-        await wait(OPEN_EXHALE_MS);
+        await wait(吐);
       }
     } finally {
       stopBreathTone();
@@ -628,7 +642,7 @@
     showScreen("passage");
 
     const name = Speech.spokenSutra(passage.sutra);
-    if (name) await say(name, 800, my);
+    if (name) await say(name, ma(800), my);
 
     for (let i = 0; i < paras.length && !skipPassage; i += 1) {
       nodes.forEach((n, j) => n.classList.toggle("reading", j === i));
@@ -637,12 +651,12 @@
         // 端末で「動きを減らす」を選んでいる人には、滑らせずに送る
         nodes[i].scrollIntoView({ behavior: reduceMotion() ? "auto" : "smooth", block: "center" });
       }
-      await say(paras[i], 1200, my);
+      await say(paras[i], ma(1200), my);
     }
 
     nodes.forEach((n) => n.classList.remove("reading"));
     el("skip-btn").hidden = true;
-    await wait(skipPassage ? 300 : PAUSE.passage);
+    await wait(skipPassage ? 300 : ma(PAUSE.passage));
   }
 
   // ---- 締め + 今日の坐り方(このあとすぐ鐘が鳴る) ----
@@ -672,9 +686,9 @@
     el("walk-btn").hidden = !current.walking;
     showScreen("closing");
 
-    await say(current.closing, 600, my);
-    await say(timeOfDay().note, PAUSE.closing, my);
-    await say(m.name + "。" + sittingShort(m), PAUSE.method, my);
+    await say(current.closing, ma(600), my);
+    await say(timeOfDay().note, ma(PAUSE.closing), my);
+    await say(m.name + "。" + sittingShort(m), ma(PAUSE.method), my);
   }
 
   // ---- 身体を整える ----
@@ -691,7 +705,7 @@
       target.classList.remove("fade-step");
       void target.offsetWidth;
       target.classList.add("fade-step");
-      await say(t, s.ms, my);
+      await say(t, ma(s.ms), my);
     }
   }
 
@@ -815,12 +829,12 @@
     el("after-inquiry").textContent = current.afterInquiry;
     el("sit-again-btn").hidden = false;
     showScreen("after");
-    await say(current.afterInquiry, PAUSE.after, my);
+    await say(current.afterInquiry, ma(PAUSE.after, 4000), my);
 
     const carry = current.inquiries[current.inquiries.length - 1]; // 道の問い
     el("after-inquiry").textContent = carry.text;
     el("sit-again-btn").hidden = true;
-    await say(carry.text, PAUSE.carry, my);
+    await say(carry.text, ma(PAUSE.carry, 4000), my);
 
     await runAim(my);
   }
@@ -828,7 +842,7 @@
   async function runAim(my) {
     el("aim-text").textContent = DEDICATION_AIM;
     showScreen("aim");
-    await say(DEDICATION_AIM.replace(/\n/g, " "), PAUSE.aim, my);
+    await say(DEDICATION_AIM.replace(/\n/g, " "), ma(PAUSE.aim, 3000), my);
     await runDedication(my);
   }
 
@@ -852,7 +866,7 @@
 
     const lines = DEDICATION.split("\n").filter((l) => l.trim());
     for (let i = 0; i < lines.length; i += 1) await say(lines[i], 400, my);
-    await wait(PAUSE.dedication);
+    await wait(ma(PAUSE.dedication, 2000));
 
     showScreen("done");
     await say("終わりました。", 0, my);
@@ -876,6 +890,17 @@
       }
       await runAim(my);
     } catch (e) {}
+  }
+
+  // 鐘が鳴るまでのおおよその秒数。設定を変えたときの目安として出す。
+  // 読み上げ約45秒(速さで伸び縮み)+ 間 + 呼吸、という実測をもとにしている。
+  function 見込み秒() {
+    const t = settings.tempo === undefined ? 0.5 : settings.tempo;
+    const 読み = 45 * (0.92 / (settings.rate || 1.05));
+    const 間 = 17 * t;
+    const 息 = (settings.breaths || 3) *
+      (Math.max(3000, 4000 * (0.7 + 0.6 * t)) + Math.max(3800, 5000 * (0.7 + 0.6 * t))) / 1000;
+    return Math.round(読み + 間 + 息);
   }
 
   // ---------- 設定画面 ----------
@@ -907,6 +932,35 @@
         renderSettings();
       });
       vc.appendChild(b);
+    });
+
+    const tc = el("tempo-choices");
+    tc.innerHTML = "";
+    [["ゆっくり", 1.0], ["ふつう", 0.5], ["速め", 0.25]].forEach(function (pair) {
+      const b = document.createElement("button");
+      b.className = "chip" + (settings.tempo === pair[1] ? " on" : "");
+      b.textContent = pair[0];
+      b.addEventListener("click", function () {
+        settings.tempo = pair[1];
+        saveSettings(settings);
+        renderSettings();
+      });
+      tc.appendChild(b);
+    });
+    el("tempo-note").textContent = "鐘が鳴るまで、およそ " + 見込み秒() + " 秒です。";
+
+    const bc = el("breath-choices");
+    bc.innerHTML = "";
+    [2, 3, 4].forEach(function (n) {
+      const b = document.createElement("button");
+      b.className = "chip" + (settings.breaths === n ? " on" : "");
+      b.textContent = n + "回";
+      b.addEventListener("click", function () {
+        settings.breaths = n;
+        saveSettings(settings);
+        renderSettings();
+      });
+      bc.appendChild(b);
     });
 
     el("voice-note").textContent = Speech.isSupported()
