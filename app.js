@@ -32,7 +32,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 48;
+  const BUILD = 50;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -103,12 +103,12 @@
       return {
         minutes: s.minutes || DEFAULT_MINUTES,
         voice: s.voice === undefined ? true : !!s.voice,
-        rate: s.rate || 1.05,
+        rate: s.rate || 0.736,
         tempo: s.tempo || 0.5,          // 間(ま)の長さの倍率
         breaths: s.breaths || 3
       };
     } catch (e) {
-      return { minutes: DEFAULT_MINUTES, voice: true, rate: 1.05, tempo: 0.5, breaths: 3 };
+      return { minutes: DEFAULT_MINUTES, voice: true, rate: 0.736, tempo: 0.5, breaths: 3 };
     }
   }
 
@@ -1079,7 +1079,7 @@
   // 読み上げ約45秒(速さで伸び縮み)+ 間 + 呼吸、という実測をもとにしている。
   function 見込み秒() {
     const t = settings.tempo === undefined ? 0.5 : settings.tempo;
-    const 読み = 45 * (0.92 / (settings.rate || 1.05));
+    const 読み = 45 * (0.92 / (settings.rate || 0.736));
     const 間 = 17 * t;
     const 息 = (settings.breaths || 3) *
       (Math.max(3000, 4000 * (0.7 + 0.6 * t)) + Math.max(3800, 5000 * (0.7 + 0.6 * t))) / 1000;
@@ -1152,7 +1152,11 @@
 
     const rc = el("rate-choices");
     rc.innerHTML = "";
-    [["ゆっくり", 0.8], ["ふつう", 0.92], ["はやめ", 1.05]].forEach(function (pair) {
+    // 音声は 0.92 の速さで作ってあるので、再生速度は この値 ÷ 0.92 になる。
+    // 選択肢は、その「実際の速さ」をそのまま名前にしてある。
+    // 数字で言えるほうが、直したいときに指定しやすい。
+    [["0.7倍", 0.644], ["0.8倍", 0.736], ["0.9倍", 0.828],
+     ["1.0倍", 0.920], ["1.1倍", 1.012]].forEach(function (pair) {
       const b = document.createElement("button");
       b.className = "chip" + (Math.abs(settings.rate - pair[1]) < 0.01 ? " on" : "");
       b.textContent = pair[0] === "speedy" ? "速め" : pair[0];

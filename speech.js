@@ -252,6 +252,10 @@ const Speech = (function () {
       function 鳴らす() {
         try {
           player.src = url;
+          // 速さを変えても声の高さは変えない(下げると別人の声になる)
+          try { player.preservesPitch = true; } catch (e) {}
+          try { player.mozPreservesPitch = true; } catch (e) {}
+          try { player.webkitPreservesPitch = true; } catch (e) {}
           player.playbackRate = speed;
           const p = player.play();
           if (p && p.catch) p.catch(function () {
@@ -275,8 +279,10 @@ const Speech = (function () {
   // 読み終わったら解決する Promise を返す。
   // 使えないときは、文字数から見積もった時間で解決する。
   function estimateMs(text) {
-    // 日本語をゆっくり読むと、およそ 1 秒あたり 6 文字
-    return Math.max(1200, Math.round((text.length / 6) * 1000));
+    // 日本語をゆっくり読むと、およそ 1 秒あたり 6 文字。
+    // 設定した速さに合わせて伸び縮みさせる。
+    const 速さ = Math.max(0.3, rate / 0.92);
+    return Math.max(1200, Math.round((text.length / 6 / 速さ) * 1000));
   }
 
   // 一度に長く読ませると、途中で切れてしまう端末がある(十数秒で止まるものが知られている)。

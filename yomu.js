@@ -22,8 +22,10 @@
   function 記録を読む() {
     try {
       const s = JSON.parse(localStorage.getItem(STORE) || "{}");
-      return { 出した: Array.isArray(s.出した) ? s.出した : [], 日: s.日 || "", 今日の: s.今日の };
-    } catch (e) { return { 出した: [], 日: "", 今日の: undefined }; }
+      return { 出した: Array.isArray(s.出した) ? s.出した : [],
+               発心: Array.isArray(s.発心) ? s.発心 : [],
+               日: s.日 || "", 今日の: s.今日の };
+    } catch (e) { return { 出した: [], 発心: [], 日: "", 今日の: undefined }; }
   }
   function 記録を書く(v) {
     try { localStorage.setItem(STORE, JSON.stringify(v)); } catch (e) {}
@@ -31,7 +33,26 @@
 
   function 札(p) { return p.sutra + "|" + p.text.slice(0, 24); }
 
+  // 五回に一回ほど、発心の一節を混ぜる。
+  // 毎回突きつけられると疲れるが、まったく無いと穏やかなだけで終わる。
+  // 時々不意に来るのがちょうどよい。
+  function 発心を混ぜるか() {
+    return typeof HOSSHIN !== "undefined" && HOSSHIN.length && Math.random() < 0.2;
+  }
+
+  function 発心の一節() {
+    const s = 記録を読む();
+    const 見た = s.発心 || [];
+    let 残り = HOSSHIN.filter((p) => 見た.indexOf(札(p)) === -1);
+    if (!残り.length) { s.発心 = []; 残り = HOSSHIN.slice(); }
+    const p = 残り[Math.floor(Math.random() * 残り.length)];
+    s.発心 = (s.発心 || []).concat([札(p)]);
+    記録を書く(s);
+    return p;
+  }
+
   function 次の一節() {
+    if (発心を混ぜるか()) return 発心の一節();
     const s = 記録を読む();
     let 残り = PASSAGES.filter((p) => s.出した.indexOf(札(p)) === -1);
     if (!残り.length) {                       // 一巡したので、また最初から
@@ -67,6 +88,10 @@
     el("sutra").textContent = p.sutra;
     const box = el("body");
     box.innerHTML = "";
+    // 発心は説明ではなく一撃なので、字を大きくして行を空ける
+    const 発心か = typeof HOSSHIN !== "undefined" &&
+      HOSSHIN.some(function (h) { return 札(h) === 札(p); });
+    box.classList.toggle("hosshin", 発心か);
     const 段落 = p.text.split("\n").filter((t) => t.trim());
     const nodes = 段落.map(function (t) {
       const e = document.createElement("p");
@@ -98,6 +123,7 @@
     for (let i = 0; i < view.段落.length; i += 1) {
       if (my !== 読上中) return;
       view.nodes.forEach((n, j) => n.classList.toggle("reading", j === i));
+      el("hint").textContent = "読んでいます";
       if (view.nodes[i].getBoundingClientRect().bottom > window.innerHeight - 30) {
         view.nodes[i].scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -106,6 +132,11 @@
       await 待つ(500);
     }
     view.nodes.forEach((n) => n.classList.remove("reading"));
+    // 読み終わってすぐ次を促さない。少し静けさを置く。
+    if (my === 読上中) {
+      await 待つ(1200);
+      if (my === 読上中) el("hint").textContent = "触れると次の一節へ";
+    }
   }
 
   function 待つ(ms) { return new Promise((r) => setTimeout(r, ms)); }
@@ -159,7 +190,8 @@
   });
 
   // ---------- 起動 ----------
-  Speech.setRate(1.05);
+  // 坐禅アプリと同じ速さ。経典は急いで読むものではない。
+  Speech.setRate(0.736);
   履歴 = [今日の一節()];
   位置 = 0;
   いまの = 出す(履歴[0]);
