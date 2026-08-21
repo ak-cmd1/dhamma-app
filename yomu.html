@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>経典を読む</title>
+<link rel="manifest" href="manifest-yomu.json">
+<meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1a17" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="読む">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root {
+  --bg:#f4efe4; --ink:#35302a; --ink-soft:#6f6558; --ink-faint:#a99e8d;
+  --accent:#6b5a45; --border:#e3dac8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:#1c1a17; --ink:#ece6d9; --ink-soft:#b3a996; --ink-faint:#6c6455;
+    --accent:#c9b28b; --border:#3a352c;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+/* 画面のどこを触っても次へ進む。ボタンを探さなくていい。 */
+#stage {
+  width: 100%;
+  max-width: 520px;
+  min-height: 100dvh;
+  padding: calc(env(safe-area-inset-top) + 26px) 24px calc(env(safe-area-inset-bottom) + 30px);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.sutra {
+  margin: 0 0 22px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--ink-soft);   /* 出典は辿るための情報なので、薄くしすぎない */
+}
+
+.body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+.para {
+  margin: 0 0 1.5em;
+  font-size: 19px;
+  line-height: 2.15;
+  opacity: 0.42;
+  transition: opacity 0.5s ease;
+}
+.para:last-child { margin-bottom: 0; }
+.para.reading { opacity: 1; }
+body.no-voice .para { opacity: 1; }
+
+.foot {
+  margin-top: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+.hint {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.tools { display: flex; gap: 16px; }
+.tool {
+  border: none;
+  background: none;
+  padding: 4px 2px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.tool:disabled { opacity: 0.3; text-decoration: none; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.body.fresh .para { animation: rise 0.9s ease both; }
+@media (prefers-reduced-motion: reduce) { .body.fresh .para { animation: none; } }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <p class="sutra" id="sutra"></p>
+  <div class="body" id="body"></div>
+  <div class="foot">
+    <p class="hint" id="hint">画面に触れると読み上げます</p>
+    <div class="tools">
+      <button class="tool" id="back" disabled>前へ</button>
+      <button class="tool" id="mute">声を止める</button>
+    </div>
+  </div>
+</div>
+
+<script src="audio-map.js?v=43"></script>
+<script src="passages.js?v=43"></script>
+<script src="speech.js?v=43"></script>
+<script src="yomu.js?v=43"></script>
+</body>
+</html>

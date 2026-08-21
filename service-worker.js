@@ -1,11 +1,14 @@
 // 方針:まずインターネットから最新を取りに行き、取れたらそれを表示しつつ控えを更新する。
 // 電波がないときだけ、控え(キャッシュ)から表示する。
 // これにより「アップロードしたのに古いままiPhoneに出る」が起きない。
-const CACHE_NAME = "keiten-v31";
+const CACHE_NAME = "keiten-v33";
 
 const ASSETS = [
   "./",
   "./index.html",
+  "./yomu.html",
+  "./yomu.js",
+  "./manifest-yomu.json",
   "./style.css",
   "./app.js",
   "./data.js",
