@@ -31,7 +31,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 63;
+  const BUILD = 64;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -90,6 +90,8 @@
     runId += 1;
     Speech.cancel();
     stopBreathTone();
+    // 背景の景色も一緒に止める。案内が終わったのに絵だけ動き続けては困る。
+    if (window.Keshiki) Keshiki.直ちに止める();
   }
 
   // ---------- 設定(端末に保存) ----------
@@ -103,10 +105,11 @@
         voice: s.voice === undefined ? true : !!s.voice,
         rate: s.rate || 0.736,
         tempo: s.tempo || 0.5,          // 間(ま)の長さの倍率
-        breaths: s.breaths || 3
+        breaths: s.breaths || 3,
+        keshiki: s.keshiki === undefined ? true : !!s.keshiki
       };
     } catch (e) {
-      return { minutes: DEFAULT_MINUTES, voice: true, rate: 0.736, tempo: 0.5, breaths: 3 };
+      return { minutes: DEFAULT_MINUTES, voice: true, rate: 0.736, tempo: 0.5, breaths: 3, keshiki: true };
     }
   }
 
@@ -658,6 +661,7 @@
     stopRun();
     Speech.refreshVoice();
     applyVoiceSetting();     // 声の有無を、始める直前にもう一度確かめる
+    applyKeshikiSetting();
     // 案内のあいだも画面を消させない。
     // 画面が消えると読み上げがそこで止まったまま戻らない端末があり、
     // 目を閉じている人は「急に何も言わなくなった」状態に置き去りになる。
@@ -804,11 +808,17 @@
     el("reread-close").hidden = true;
     showScreen("passage");
 
+    // その経典が語っている場面を、背景に薄く引く。
+    // 型が当てはまらない経典には、何も描かず墨のにじみだけを置く。
+    if (window.Keshiki && settings.keshiki) Keshiki.始める(passage.sutra + "\n" + passage.text);
+
     const name = Speech.spokenSutra(passage.sutra);
     if (name) await say(name, ma(800), my);
 
     for (let i = 0; i < paras.length && !skipPassage; i += 1) {
       nodes.forEach((n, j) => n.classList.toggle("reading", j === i));
+      // 読み進みに合わせて、絵も進む
+      if (window.Keshiki) Keshiki.進み((i + 1) / paras.length);
       // 画面からはみ出していれば、読まれている段落まで静かに送る
       if (nodes[i].getBoundingClientRect().bottom > window.innerHeight - 40) {
         // 端末で「動きを減らす」を選んでいる人には、滑らせずに送る
@@ -819,6 +829,7 @@
 
     nodes.forEach((n) => n.classList.remove("reading"));
     el("skip-btn").hidden = true;
+    if (window.Keshiki) Keshiki.終える();   // 読み終えたら、静かに消える
     await wait(skipPassage ? 300 : ma(PAUSE.passage));
   }
 
@@ -1187,6 +1198,21 @@
     });
     el("tempo-note").textContent = "鐘が鳴るまで、およそ " + 見込み秒() + " 秒です。";
 
+    const kc = el("keshiki-choices");
+    kc.innerHTML = "";
+    [["出す", true], ["出さない", false]].forEach(function (pair) {
+      const b = document.createElement("button");
+      b.className = "chip" + (settings.keshiki === pair[1] ? " on" : "");
+      b.textContent = pair[0];
+      b.addEventListener("click", function () {
+        settings.keshiki = pair[1];
+        saveSettings(settings);
+        if (window.Keshiki) Keshiki.使う(pair[1]);
+        renderSettings();
+      });
+      kc.appendChild(b);
+    });
+
     const bc = el("breath-choices");
     bc.innerHTML = "";
     [2, 3, 4].forEach(function (n) {
@@ -1370,6 +1396,11 @@
   // 終わったあと、今日の一節をもう一度読む
   el("reread-btn").addEventListener("click", function () {
     stopRun();
+    if (window.Keshiki && settings.keshiki) {
+      const p = passage || todaysPassage((current || todaysHindrance()).id);
+      Keshiki.始める(p.sutra + "\n" + p.text);
+      Keshiki.進み(1);
+    }
     if (!passage) passage = todaysPassage((current || todaysHindrance()).id);
     el("passage-sutra").textContent = passage.sutra;
     const box = el("passage-text");
@@ -1478,6 +1509,10 @@
   });
 
   // ---------- 起動 ----------
+  function applyKeshikiSetting() {
+    if (window.Keshiki) Keshiki.使う(!!settings.keshiki);
+  }
+
   function applyVoiceSetting() {
     Speech.setEnabled(settings.voice);
     // 声を使わないときは、段落を薄くしない(読む順を追えなくなるため)
@@ -1486,6 +1521,7 @@
 
   Speech.setRate(settings.rate);
   applyVoiceSetting();
+  applyKeshikiSetting();
 
   // 声の一覧は、端末によっては読み込みの少しあとに届く。
   // 起動時だけの判定だと「声が使えない」と誤って決めつけ、

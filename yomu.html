@@ -111,6 +111,10 @@ body.no-voice .para { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .body.fresh .para { animation: none; } }
 
 /* 指で押したときの取りこぼしを無くす(本編アプリと同じ理由) */
+#keshiki { position: fixed; inset: 0; width: 100%; height: 100%;
+           pointer-events: none; z-index: 0; opacity: 0; transition: opacity .9s ease; }
+#stage { position: relative; z-index: 1; }
+@media (prefers-reduced-motion: reduce) { #keshiki { display: none; } }
 button { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 </style>
 </head>
@@ -128,11 +132,12 @@ button { touch-action: manipulation; -webkit-user-select: none; user-select: non
   </div>
 </div>
 
-<script src="audio-map.js?v=63"></script>
-<script src="passages.js?v=63"></script>
-<script src="elders.js?v=63"></script>
-<script src="hosshin.js?v=63"></script>
-<script src="speech.js?v=63"></script>
-<script src="yomu.js?v=63"></script>
+<script src="audio-map.js?v=64"></script>
+<script src="passages.js?v=64"></script>
+<script src="elders.js?v=64"></script>
+<script src="hosshin.js?v=64"></script>
+<script src="keshiki.js?v=64"></script>
+<script src="speech.js?v=64"></script>
+<script src="yomu.js?v=64"></script>
 </body>
 </html>

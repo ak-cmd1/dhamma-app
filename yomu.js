@@ -127,11 +127,13 @@
       if (view.nodes[i].getBoundingClientRect().bottom > window.innerHeight - 30) {
         view.nodes[i].scrollIntoView({ behavior: "smooth", block: "center" });
       }
+      if (window.Keshiki) Keshiki.進み((i + 1) / view.段落.length);
       await Speech.speak(view.段落[i]);
       if (my !== 読上中) return;
       await 待つ(500);
     }
     view.nodes.forEach((n) => n.classList.remove("reading"));
+    if (window.Keshiki) Keshiki.進み(1);
     // 読み終わってすぐ次を促さない。少し静けさを置く。
     if (my === 読上中) {
       await 待つ(1200);
@@ -148,6 +150,11 @@
     いまの = 出す(p);
     el("back").disabled = 位置 <= 0;
     el("hint").textContent = "触れると次の一節へ";
+    // その一節が語っている場面を、背景に薄く引く
+    if (window.Keshiki) {
+      Keshiki.始める(p.sutra + "\n" + p.text);
+      Keshiki.進み(0.15);
+    }
     if (読み上げる) 読む(p, いまの);
   }
 
