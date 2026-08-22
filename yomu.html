@@ -109,6 +109,9 @@ body.no-voice .para { opacity: 1; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .body.fresh .para { animation: rise 0.9s ease both; }
 @media (prefers-reduced-motion: reduce) { .body.fresh .para { animation: none; } }
+
+/* 指で押したときの取りこぼしを無くす(本編アプリと同じ理由) */
+button { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 </style>
 </head>
 <body>
@@ -125,11 +128,11 @@ body.no-voice .para { opacity: 1; }
   </div>
 </div>
 
-<script src="audio-map.js?v=61"></script>
-<script src="passages.js?v=61"></script>
-<script src="elders.js?v=61"></script>
-<script src="hosshin.js?v=61"></script>
-<script src="speech.js?v=61"></script>
-<script src="yomu.js?v=61"></script>
+<script src="audio-map.js?v=62"></script>
+<script src="passages.js?v=62"></script>
+<script src="elders.js?v=62"></script>
+<script src="hosshin.js?v=62"></script>
+<script src="speech.js?v=62"></script>
+<script src="yomu.js?v=62"></script>
 </body>
 </html>

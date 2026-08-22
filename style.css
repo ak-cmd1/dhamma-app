@@ -712,3 +712,13 @@ body.no-voice .hosshin-text .para { opacity: 1; }
 #screen-settings .setting-note,
 #screen-settings .slider-ends,
 #screen-settings .credit { text-align: left; }
+
+/* 指で押したときの取りこぼしを無くす。
+   この指定が無いと、端末が「二回叩いて拡大する操作かもしれない」と
+   様子を見るため、押してから効くまでに間があき、
+   その間に指が少しでも動くと押した扱いにならないことがある。 */
+button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}

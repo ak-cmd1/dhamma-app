@@ -31,7 +31,7 @@
 
   // 版番号。index.html の ?v= と必ず揃える。
   // これが画面に出るので、古い版が端末に残っていてもすぐ気づける。
-  const BUILD = 61;
+  const BUILD = 62;
 
   // 呼吸だけは、間ではなく息そのものなので縮めすぎない。
   // テンポを上げても、吸う・吐くは最短でも 3.0 / 3.8 秒は残す。
@@ -1210,6 +1210,9 @@
     getAudioCtx();
   }
 
+  // 画面を移る操作は、必ず動いている案内を止めてから行う。
+  // 止めずに移ると、裏で進み続けている案内が数秒後に画面を奪い返す。
+  // 利用者からは「押しても効かない」「戻れない」ように見えていた。
   el("start-btn").addEventListener("click", function () {
     unlockAudio();
     run();
@@ -1219,15 +1222,18 @@
   // 目を閉じる前の段階で分岐するので、以後のタップ不要は保たれる。
   el("choose-btn").addEventListener("click", function () {
     unlockAudio();
+    stopRun();          // 動いている案内を止めてから移る(下の注記を参照)
     renderChoices();
     showScreen("choose");
   });
 
   el("choose-back-btn").addEventListener("click", function () {
+    stopRun();
     showScreen("start");
   });
 
   el("reread-close").addEventListener("click", function () {
+    stopRun();
     el("reread-close").hidden = true;
     applyVoiceSetting();   // 段落の濃さの設定を元に戻す
     showScreen("done");
@@ -1400,6 +1406,7 @@
   }
 
   el("settings-btn").addEventListener("click", function () {
+    stopRun();
     Speech.refreshVoice();
     renderSettings();
     showDeviceInfo();
@@ -1409,13 +1416,13 @@
   });
 
   el("settings-back-top").addEventListener("click", function () {
-    Speech.cancel();
+    stopRun();
     window.scrollTo(0, 0);
     showScreen("start");
   });
 
   el("settings-done-btn").addEventListener("click", function () {
-    Speech.cancel();
+    stopRun();
     showScreen("start");
   });
 
@@ -1441,7 +1448,16 @@
   // 途中でやめるときは、待っている処理を解いて、通常の終わり方へ合流させる。
   // (以前は待ち処理を置き去りにしたまま別経路で終えていた)
   el("stop-btn").addEventListener("click", function () {
-    if (!sitResolve) return;
+    // 待ちが無い状態(二度押し・坐り始める直前)で黙って何もしないと、
+    // 押しても反応が無いように見える。その場合も必ず終わりへ進める。
+    if (!sitResolve) {
+      sitEndAt = null;
+      saveSit(null);
+      if (sitTimer) { clearTimeout(sitTimer); sitTimer = null; }
+      stopRun();
+      showScreen("start");
+      return;
+    }
     const r = sitResolve;
     sitResolve = null;
     sitEndAt = null;
