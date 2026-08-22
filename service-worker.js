@@ -1,7 +1,7 @@
 // 方針:まずインターネットから最新を取りに行き、取れたらそれを表示しつつ控えを更新する。
 // 電波がないときだけ、控え(キャッシュ)から表示する。
 // これにより「アップロードしたのに古いままiPhoneに出る」が起きない。
-const CACHE_NAME = "keiten-v54";
+const CACHE_NAME = "keiten-v55";
 
 const ASSETS = [
   "./",
@@ -22,7 +22,11 @@ const ASSETS = [
   "./icon-192.png",
   "./icon-512.png",
   "./icon-180.png",
-  "./icon-maskable-512.png"
+  "./icon-maskable-512.png",
+  "./yomu-icon-180.png",
+  "./yomu-icon-192.png",
+  "./yomu-icon-512.png",
+  "./yomu-icon-maskable-512.png"
 ];
 
 self.addEventListener("install", (event) => {

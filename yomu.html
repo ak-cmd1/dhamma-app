@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="読む">
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="yomu-icon-180.png?v=65">
+<link rel="icon" href="yomu-icon-192.png?v=65">
 <style>
 :root {
   --bg:#f4efe4; --ink:#35302a; --ink-soft:#6f6558; --ink-faint:#a99e8d;
@@ -115,7 +115,8 @@ body.no-voice .para { opacity: 1; }
            pointer-events: none; z-index: 0; opacity: 0; transition: opacity .9s ease; }
 #stage { position: relative; z-index: 1; }
 @media (prefers-reduced-motion: reduce) { #keshiki { display: none; } }
-button { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+#to-sit { text-decoration: none; display: inline-flex; align-items: center; }
+button, .tool { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
 </style>
 </head>
 <body>
@@ -128,16 +129,17 @@ button { touch-action: manipulation; -webkit-user-select: none; user-select: non
     <div class="tools">
       <button class="tool" id="back" disabled>前へ</button>
       <button class="tool" id="mute">声を止める</button>
+      <a class="tool" id="to-sit" href="index.html">坐禅へ</a>
     </div>
   </div>
 </div>
 
-<script src="audio-map.js?v=64"></script>
-<script src="passages.js?v=64"></script>
-<script src="elders.js?v=64"></script>
-<script src="hosshin.js?v=64"></script>
-<script src="keshiki.js?v=64"></script>
-<script src="speech.js?v=64"></script>
-<script src="yomu.js?v=64"></script>
+<script src="audio-map.js?v=65"></script>
+<script src="passages.js?v=65"></script>
+<script src="elders.js?v=65"></script>
+<script src="hosshin.js?v=65"></script>
+<script src="keshiki.js?v=65"></script>
+<script src="speech.js?v=65"></script>
+<script src="yomu.js?v=65"></script>
 </body>
 </html>

@@ -340,6 +340,15 @@ body {
 
 .link-btn:active { opacity: 0.55; }
 
+/* もう一つのアプリへの入口はリンクなので、ボタンと同じ当たり判定にする。
+   そのままでは高さの指定が効かず、文字の高さしか押せない。 */
+a.link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
 .link-btn.faint {
   color: var(--ink-faint);
   text-decoration: none;
